@@ -12,6 +12,7 @@
 - 基于用户的权限控制（用户只能访问自己的集合）
 - 可配置的存储路径和URL
 - 支持Vercel部署
+- **新增**: 使用AI（OpenAI或Grok）为图片生成描述
 
 ## 技术栈
 
@@ -22,6 +23,7 @@
 - **文件处理**: Multer
 - **ID生成**: UUID
 - **部署**: Vercel
+- **AI集成**: Vercel AI SDK, OpenAI, Grok
 
 ## 环境变量
 
@@ -33,6 +35,9 @@
 | `IMAGE_ROOT_URL` | 访问图片的基础URL | `http://localhost:3000/images/` | 是 |
 | `PORT` | 服务器端口 | `3000` | 否 |
 | `JWT_SECRET` | JWT令牌的密钥 | `default-secret-key` | 是（生产环境） |
+| `AI_PROVIDER` | AI提供商（openai或xai） | `openai` | 否（仅图片描述功能） |
+| `OPENAI_API_KEY` | OpenAI API密钥 | - | 否（使用OpenAI时需要） |
+| `XAI_API_KEY` | Grok (XAI) API密钥 | - | 否（使用Grok时需要） |
 
 ## 项目结构
 
@@ -47,6 +52,14 @@ image-hosting-service/
 │   │   └── user-service.ts     # 用户服务（创建用户、查找用户等）
 │   └── middleware/             # 中间件
 │       └── auth-middleware.ts  # 认证中间件
+├── client/                     # 客户端工具
+│   ├── src/                    # 客户端源代码
+│   │   ├── index.ts            # 客户端入口文件
+│   │   ├── api-client.ts       # API客户端
+│   │   ├── markdown-processor.ts # Markdown处理器
+│   │   └── image-describer.ts  # 图片描述生成器
+│   ├── package.json            # 客户端依赖
+│   └── tsconfig.json           # 客户端TypeScript配置
 ├── dist/                       # 编译后的JavaScript文件
 ├── data/                       # 图片和元数据存储目录
 ├── tsconfig.json               # TypeScript配置
@@ -73,6 +86,11 @@ image-hosting-service/
    IMAGE_ROOT_URL=http://your-domain.com/images/
    PORT=3000
    JWT_SECRET=your-secret-key
+   
+   # 可选：AI配置
+   AI_PROVIDER=openai
+   OPENAI_API_KEY=your-openai-api-key
+   XAI_API_KEY=your-xai-api-key
    \`\`\`
 
 4. 构建项目
@@ -306,6 +324,144 @@ GET /health
 }
 \`\`\`
 
+## 客户端工具
+
+### Markdown图片处理器
+
+我们提供了一个客户端工具，用于处理Markdown文件中的图片，将它们上传到图片托管服务，并更新Markdown中的图片链接。
+
+#### 安装客户端工具
+
+\`\`\`bash
+cd client
+npm install
+npm run build
+\`\`\`
+
+#### 配置客户端
+
+创建`.env`文件：
+
+\`\`\`
+API_URL=http://localhost:3000
+API_EMAIL=your-email@example.com
+API_PASSWORD=your-password
+COLLECTION_NAME=markdown-images
+
+# AI配置（可选）
+AI_PROVIDER=openai
+OPENAI_API_KEY=your-openai-api-key
+XAI_API_KEY=your-xai-api-key
+\`\`\`
+
+#### 使用客户端工具
+
+##### 基本用法
+
+\`\`\`bash
+# 处理Markdown文件，覆盖原文件
+node dist/index.js path/to/markdown.md
+
+# 处理Markdown文件，输出到新文件
+node dist/index.js path/to/markdown.md -o path/to/output.md
+
+# 指定集合名称
+node dist/index.js path/to/markdown.md -c my-collection
+
+# 指定API URL和凭据
+node dist/index.js path/to/markdown.md -u http://api.example.com -e user@example.com -p password
+\`\`\`
+
+##### 使用AI生成图片描述
+
+\`\`\`bash
+# 使用OpenAI生成图片描述
+node dist/index.js path/to/markdown.md --describe --ai-provider openai --openai-key your-api-key
+
+# 使用Grok (XAI) 生成图片描述
+node dist/index.js path/to/markdown.md --describe --ai-provider xai --xai-key your-api-key
+
+# 使用环境变量中的AI配置
+node dist/index.js path/to/markdown.md --describe
+\`\`\`
+
+##### 命令行选项
+
+- `-o, --output <file>`: 输出文件（默认覆盖输入文件）
+- `-c, --collection <name>`: 图片集合名称（默认为环境变量中的COLLECTION_NAME或'markdown-images'）
+- `-u, --url <url>`: API URL（默认为环境变量中的API_URL或'http://localhost:3000'）
+- `-e, --email <email>`: API邮箱（默认为环境变量中的API_EMAIL）
+- `-p, --password <password>`: API密码（默认为环境变量中的API_PASSWORD）
+- `-d, --describe`: 使用AI为图片生成描述
+- `--ai-provider <provider>`: AI提供商（openai或xai，默认为环境变量中的AI_PROVIDER或'openai'）
+- `--openai-key <key>`: OpenAI API密钥（默认为环境变量中的OPENAI_API_KEY）
+- `--xai-key <key>`: Grok (XAI) API密钥（默认为环境变量中的XAI_API_KEY）
+
+#### 图片描述功能
+
+当启用图片描述功能（使用`--describe`选项）时，工具会为没有alt文本的图片生成简短描述。这对于以下场景特别有用：
+
+1. **提高可访问性**：为图片添加有意义的alt text，帮助屏幕阅读器用户
+2. **增强RAG系统**：为检索增强生成系统提供更好的图片上下文
+3. **改善SEO**：搜索引擎可以更好地理解图片内容
+4. **内容组织**：帮助更好地分类和搜索图片内容
+
+描述生成过程：
+
+1. 对于本地图片，工具会读取文件并发送到AI进行分析
+2. 对于远程图片，工具会下载图片并发送到AI进行分析
+3. 对于base64图片，工具会解码数据并发送到AI进行分析
+
+生成的描述会替换原始alt文本（如果为空），并保留在更新后的Markdown中。
+
+##### 示例
+
+假设有以下Markdown文件：
+
+\`\`\`markdown
+# 我的文档
+
+这是一个没有alt文本的本地图片：
+![][./images/local.png]
+
+这是一个有alt文本的远程图片：
+![远程图片](https://example.com/image.jpg)
+
+这是一个base64图片：
+![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJ5gMtggQAAAABJRU5ErkJggg==)
+\`\`\`
+
+使用图片描述功能处理后，结果可能如下：
+
+\`\`\`markdown
+# 我的文档
+
+这是一个没有alt文本的本地图片：
+![一只橙色猫咪坐在窗台上](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/7b52009b-bfd9-4e2b-0d93-839c55f10200.png)
+
+这是一个有alt文本的远程图片：
+![远程图片](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/3fdba35f-04cd-4e2e-8c84-96a4413c0201.jpg)
+
+这是一个base64图片：
+![简单的白色背景上的黑点](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d.png)
+\`\`\`
+
+注意：只有原始alt文本为空的图片才会生成新的描述。
+
+#### 性能考虑
+
+当使用AI描述功能处理大量图片时，请注意以下几点：
+
+1. **处理时间**：每个图片都需要进行API调用，这会增加处理时间
+2. **API限制**：注意OpenAI和Grok的API调用限制
+3. **成本**：每次图片描述都会产生API调用费用
+
+对于包含大量图片的文档，可以考虑：
+
+1. **分批处理**：将文档分成多个部分进行处理
+2. **实现缓存**：缓存已处理过的图片描述，避免重复处理
+3. **选择性处理**：只为特定的图片生成描述
+
 ## 认证系统详解
 
 ### JWT认证流程
@@ -342,6 +498,9 @@ GET /health
    - `DATA_ROOT`: 在Vercel上，这应该设置为`/tmp/data`或其他可写目录
    - `IMAGE_ROOT_URL`: 设置为您的Vercel域名，例如`https://your-project.vercel.app/images/`
    - `JWT_SECRET`: 设置一个安全的密钥用于JWT令牌生成（**非常重要**：使用强密钥）
+   - `AI_PROVIDER`: 设置为`openai`或`xai`（如果使用图片描述功能）
+   - `OPENAI_API_KEY`: 设置您的OpenAI API密钥（如果使用OpenAI）
+   - `XAI_API_KEY`: 设置您的Grok API密钥（如果使用Grok）
 
 3. 部署项目
 
@@ -421,6 +580,7 @@ async function uploadImages(collectionId, files) {
 3. **HTTPS**: 确保所有API通信都通过HTTPS进行
 4. **CORS**: 根据需要配置CORS策略，限制允许的来源
 5. **速率限制**: 考虑实施API速率限制以防止滥用
+6. **API密钥安全**: 保护您的AI API密钥，避免泄露
 
 ## 扩展功能
 
@@ -433,6 +593,8 @@ async function uploadImages(collectionId, files) {
 5. **API文档**: 使用Swagger/OpenAPI添加交互式API文档
 6. **密码重置**: 实现密码重置功能
 7. **电子邮件验证**: 添加新用户注册的电子邮件验证
+8. **批量处理**: 添加批量处理多个Markdown文件的功能
+9. **图片描述缓存**: 实现图片描述缓存，避免重复处理相同图片
 
 ## 贡献
 

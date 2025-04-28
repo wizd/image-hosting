@@ -13,17 +13,18 @@ export async function processMarkdown(
   apiClient: ApiClient,
   collectionName: string,
   basePath: string,
+  imageDescriber: any = null,
 ): Promise<string> {
   let processedMarkdown = markdown
 
   // Process local images
-  processedMarkdown = await processLocalImages(processedMarkdown, apiClient, collectionName, basePath)
+  processedMarkdown = await processLocalImages(processedMarkdown, apiClient, collectionName, basePath, imageDescriber)
 
   // Process remote images
-  processedMarkdown = await processRemoteImages(processedMarkdown, apiClient, collectionName)
+  processedMarkdown = await processRemoteImages(processedMarkdown, apiClient, collectionName, imageDescriber)
 
   // Process base64 images
-  processedMarkdown = await processBase64Images(processedMarkdown, apiClient, collectionName)
+  processedMarkdown = await processBase64Images(processedMarkdown, apiClient, collectionName, imageDescriber)
 
   return processedMarkdown
 }
@@ -33,6 +34,7 @@ async function processLocalImages(
   apiClient: ApiClient,
   collectionName: string,
   basePath: string,
+  imageDescriber: any = null,
 ): Promise<string> {
   let result = markdown
   const matches = Array.from(result.matchAll(LOCAL_IMAGE_REGEX))
@@ -50,11 +52,19 @@ async function processLocalImages(
         continue
       }
 
+      // Generate description if requested
+      let description = altText
+      if (imageDescriber && (!altText || altText.trim() === "")) {
+        console.log(chalk.blue(`Generating description for local image: ${fullPath}`))
+        description = await imageDescriber.describeImage(fullPath)
+        console.log(chalk.green(`Generated description: "${description}"`))
+      }
+
       console.log(chalk.blue(`Uploading local image: ${fullPath}`))
       const uploadResult = await apiClient.uploadLocalImage(fullPath, collectionName)
 
       // Replace the local image reference with the hosted URL
-      result = result.replace(fullMatch, `![${altText}](${uploadResult.fullUrl})`)
+      result = result.replace(fullMatch, `![${description}](${uploadResult.fullUrl})`)
       console.log(chalk.green(`Replaced local image with: ${uploadResult.fullUrl}`))
     } catch (error) {
       console.error(
@@ -68,7 +78,12 @@ async function processLocalImages(
   return result
 }
 
-async function processRemoteImages(markdown: string, apiClient: ApiClient, collectionName: string): Promise<string> {
+async function processRemoteImages(
+  markdown: string,
+  apiClient: ApiClient,
+  collectionName: string,
+  imageDescriber: any = null,
+): Promise<string> {
   let result = markdown
   const matches = Array.from(result.matchAll(REMOTE_IMAGE_REGEX))
 
@@ -76,11 +91,19 @@ async function processRemoteImages(markdown: string, apiClient: ApiClient, colle
     const [fullMatch, altText, remoteUrl] = match
 
     try {
+      // Generate description if requested
+      let description = altText
+      if (imageDescriber && (!altText || altText.trim() === "")) {
+        console.log(chalk.blue(`Generating description for remote image: ${remoteUrl}`))
+        description = await imageDescriber.describeRemoteImage(remoteUrl)
+        console.log(chalk.green(`Generated description: "${description}"`))
+      }
+
       console.log(chalk.blue(`Uploading remote image: ${remoteUrl}`))
       const uploadResult = await apiClient.uploadRemoteImage(remoteUrl, collectionName)
 
       // Replace the remote image reference with the hosted URL
-      result = result.replace(fullMatch, `![${altText}](${uploadResult.fullUrl})`)
+      result = result.replace(fullMatch, `![${description}](${uploadResult.fullUrl})`)
       console.log(chalk.green(`Replaced remote image with: ${uploadResult.fullUrl}`))
     } catch (error) {
       console.error(
@@ -94,7 +117,12 @@ async function processRemoteImages(markdown: string, apiClient: ApiClient, colle
   return result
 }
 
-async function processBase64Images(markdown: string, apiClient: ApiClient, collectionName: string): Promise<string> {
+async function processBase64Images(
+  markdown: string,
+  apiClient: ApiClient,
+  collectionName: string,
+  imageDescriber: any = null,
+): Promise<string> {
   let result = markdown
   const matches = Array.from(result.matchAll(BASE64_IMAGE_REGEX))
 
@@ -109,12 +137,20 @@ async function processBase64Images(markdown: string, apiClient: ApiClient, colle
         continue
       }
 
+      // Generate description if requested
+      let description = altText
+      if (imageDescriber && (!altText || altText.trim() === "")) {
+        console.log(chalk.blue(`Generating description for base64 image`))
+        description = await imageDescriber.describeBase64Image(base64Data)
+        console.log(chalk.green(`Generated description: "${description}"`))
+      }
+
       console.log(chalk.blue(`Uploading base64 image`))
       const filename = `base64-image-${Date.now()}.png`
       const uploadResult = await apiClient.uploadBase64Image(base64Data, filename, collectionName)
 
       // Replace the base64 image reference with the hosted URL
-      result = result.replace(fullMatch, `![${altText}](${uploadResult.fullUrl})`)
+      result = result.replace(fullMatch, `![${description}](${uploadResult.fullUrl})`)
       console.log(chalk.green(`Replaced base64 image with: ${uploadResult.fullUrl}`))
     } catch (error) {
       console.error(
