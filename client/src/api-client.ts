@@ -10,27 +10,50 @@ export interface ImageUploadResult {
   fullUrl: string
 }
 
+export interface AuthOptions {
+  email?: string
+  password?: string
+  apiKey?: string
+}
+
 export class ApiClient {
   private baseUrl: string
-  private email: string
-  private password: string
+  private email?: string
+  private password?: string
+  private apiKey?: string
   private token: string | null = null
   private client: AxiosInstance
   private collectionId: string | null = null
   private collectionName: string | null = null
 
-  constructor(baseUrl: string, email: string, password: string) {
+  constructor(baseUrl: string, authOptions: AuthOptions) {
     this.baseUrl = baseUrl
-    this.email = email
-    this.password = password
+    this.email = authOptions.email
+    this.password = authOptions.password
+    this.apiKey = authOptions.apiKey
     this.client = axios.create({
       baseURL: baseUrl,
       timeout: 30000, // 30 seconds
     })
+
+    // 如果提供了API密钥，直接设置请求头
+    if (this.apiKey) {
+      this.client.defaults.headers.common["x-api-key"] = this.apiKey
+    }
   }
 
   async initialize(): Promise<void> {
-    await this.login()
+    // 如果使用API密钥认证，不需要登录
+    if (this.apiKey) {
+      return
+    }
+
+    // 否则使用邮箱和密码登录
+    if (this.email && this.password) {
+      await this.login()
+    } else {
+      throw new Error("Either API key or email/password must be provided")
+    }
   }
 
   private async login(): Promise<void> {

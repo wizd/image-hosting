@@ -5,6 +5,7 @@
 ## 功能特点
 
 - 用户注册和登录系统，使用JWT进行身份验证
+- API密钥认证，用于自动化脚本和集成
 - 创建具有唯一ID的命名集合
 - 上传多个图片到集合中
 - 为集合和文件自动生成UUID
@@ -18,7 +19,7 @@
 
 - **后端**: Node.js, Express
 - **语言**: TypeScript
-- **身份验证**: JWT (JSON Web Tokens)
+- **身份验证**: JWT (JSON Web Tokens) 和 API密钥
 - **密码加密**: bcryptjs
 - **文件处理**: Multer
 - **ID生成**: UUID
@@ -35,6 +36,7 @@
 | `IMAGE_ROOT_URL` | 访问图片的基础URL | `http://localhost:3000/images/` | 是 |
 | `PORT` | 服务器端口 | `3000` | 否 |
 | `JWT_SECRET` | JWT令牌的密钥 | `default-secret-key` | 是（生产环境） |
+| `API_KEY` | 默认API密钥（可选） | - | 否 |
 | `AI_PROVIDER` | AI提供商（openai或xai） | `openai` | 否（仅图片描述功能） |
 | `OPENAI_API_KEY` | OpenAI API密钥 | - | 否（使用OpenAI时需要） |
 | `XAI_API_KEY` | Grok (XAI) API密钥 | - | 否（使用Grok时需要） |
@@ -45,13 +47,18 @@
 image-hosting-service/
 ├── src/
 │   ├── index.ts                # 主入口文件
+│   ├── config.ts               # 配置文件
 │   ├── auth/                   # 身份验证相关代码
 │   │   ├── auth-types.ts       # 认证相关类型定义
 │   │   ├── auth-controller.ts  # 认证控制器（注册、登录、获取个人资料）
-│   │   ├── auth-middleware.ts  # 认证中间件（验证令牌）
 │   │   └── user-service.ts     # 用户服务（创建用户、查找用户等）
+│   ├── api-key/                # API密钥相关代码
+│   │   ├── api-key-types.ts    # API密钥类型定义
+│   │   ├── api-key-controller.ts # API密钥控制器
+│   │   └── api-key-service.ts  # API密钥服务
 │   └── middleware/             # 中间件
-│       └── auth-middleware.ts  # 认证中间件
+│       ├── auth-middleware.ts  # JWT认证中间件
+│       └── api-key-middleware.ts # API密钥认证中间件
 ├── client/                     # 客户端工具
 │   ├── src/                    # 客户端源代码
 │   │   ├── index.ts            # 客户端入口文件
@@ -86,6 +93,9 @@ image-hosting-service/
    IMAGE_ROOT_URL=http://your-domain.com/images/
    PORT=3000
    JWT_SECRET=your-secret-key
+   
+   # 可选：默认API密钥
+   API_KEY=your-api-key
    
    # 可选：AI配置
    AI_PROVIDER=openai
@@ -177,6 +187,106 @@ Authorization: Bearer YOUR_TOKEN_HERE
 }
 \`\`\`
 
+### API密钥管理
+
+#### 创建API密钥（需要JWT认证）
+
+\`\`\`
+POST /api-keys
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "My Script Key",
+  "permissions": ["read", "write"],
+  "expiresAt": "2024-12-31T23:59:59Z"  // 可选
+}
+\`\`\`
+
+响应:
+\`\`\`json
+{
+  "apiKey": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "My Script Key",
+    "key": "YourFullApiKeyHere_OnlyShownOnce",
+    "createdAt": "2023-12-15T12:30:45.123Z",
+    "expiresAt": "2024-12-31T23:59:59Z",
+    "isActive": true,
+    "permissions": ["read", "write"]
+  }
+}
+\`\`\`
+
+**注意**: 完整的API密钥只会在创建时返回一次，请妥善保存。
+
+#### 获取用户的所有API密钥（需要JWT认证）
+
+\`\`\`
+GET /api-keys
+Authorization: Bearer YOUR_TOKEN_HERE
+\`\`\`
+
+响应:
+\`\`\`json
+{
+  "apiKeys": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "My Script Key",
+      "key": "YourFull...",  // 部分隐藏
+      "createdAt": "2023-12-15T12:30:45.123Z",
+      "lastUsedAt": "2023-12-16T10:20:30.123Z",
+      "expiresAt": "2024-12-31T23:59:59Z",
+      "isActive": true,
+      "permissions": ["read", "write"]
+    }
+  ]
+}
+\`\`\`
+
+#### 更新API密钥状态（需要JWT认证）
+
+\`\`\`
+PATCH /api-keys/:id
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "isActive": false
+}
+\`\`\`
+
+响应:
+\`\`\`json
+{
+  "apiKey": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "My Script Key",
+    "key": "YourFull...",
+    "createdAt": "2023-12-15T12:30:45.123Z",
+    "lastUsedAt": "2023-12-16T10:20:30.123Z",
+    "expiresAt": "2024-12-31T23:59:59Z",
+    "isActive": false,
+    "permissions": ["read", "write"]
+  }
+}
+\`\`\`
+
+#### 删除API密钥（需要JWT认证）
+
+\`\`\`
+DELETE /api-keys/:id
+Authorization: Bearer YOUR_TOKEN_HERE
+\`\`\`
+
+响应:
+\`\`\`json
+{
+  "message": "API key deleted successfully"
+}
+\`\`\`
+
 ### 集合管理
 
 #### 创建集合（需要认证）
@@ -184,6 +294,8 @@ Authorization: Bearer YOUR_TOKEN_HERE
 \`\`\`
 POST /collections
 Authorization: Bearer YOUR_TOKEN_HERE
+# 或者使用API密钥
+X-API-Key: YOUR_API_KEY
 Content-Type: application/json
 
 {
@@ -205,6 +317,8 @@ Content-Type: application/json
 \`\`\`
 GET /collections
 Authorization: Bearer YOUR_TOKEN_HERE
+# 或者使用API密钥
+X-API-Key: YOUR_API_KEY
 \`\`\`
 
 响应:
@@ -230,6 +344,8 @@ Authorization: Bearer YOUR_TOKEN_HERE
 \`\`\`
 DELETE /collections/:collectionId
 Authorization: Bearer YOUR_TOKEN_HERE
+# 或者使用API密钥
+X-API-Key: YOUR_API_KEY
 \`\`\`
 
 响应:
@@ -246,6 +362,8 @@ Authorization: Bearer YOUR_TOKEN_HERE
 \`\`\`
 POST /collections/:collectionId/images
 Authorization: Bearer YOUR_TOKEN_HERE
+# 或者使用API密钥
+X-API-Key: YOUR_API_KEY
 Content-Type: multipart/form-data
 
 images: [file1, file2, ...]
@@ -277,6 +395,8 @@ images: [file1, file2, ...]
 \`\`\`
 GET /collections/:collectionId/images
 Authorization: Bearer YOUR_TOKEN_HERE
+# 或者使用API密钥
+X-API-Key: YOUR_API_KEY
 \`\`\`
 
 响应:
@@ -344,8 +464,13 @@ npm run build
 
 \`\`\`
 API_URL=http://localhost:3000
-API_EMAIL=your-email@example.com
-API_PASSWORD=your-password
+
+# 认证方式（二选一）
+API_KEY=your-api-key-here
+# 或者使用邮箱密码认证
+# API_EMAIL=your-email@example.com
+# API_PASSWORD=your-password
+
 COLLECTION_NAME=markdown-images
 
 # AI配置（可选）
@@ -368,8 +493,11 @@ node dist/index.js path/to/markdown.md -o path/to/output.md
 # 指定集合名称
 node dist/index.js path/to/markdown.md -c my-collection
 
-# 指定API URL和凭据
-node dist/index.js path/to/markdown.md -u http://api.example.com -e user@example.com -p password
+# 使用API密钥认证
+node dist/index.js path/to/markdown.md -k your-api-key
+
+# 使用邮箱密码认证
+node dist/index.js path/to/markdown.md -e user@example.com -p password
 \`\`\`
 
 ##### 使用AI生成图片描述
@@ -390,6 +518,7 @@ node dist/index.js path/to/markdown.md --describe
 - `-o, --output <file>`: 输出文件（默认覆盖输入文件）
 - `-c, --collection <name>`: 图片集合名称（默认为环境变量中的COLLECTION_NAME或'markdown-images'）
 - `-u, --url <url>`: API URL（默认为环境变量中的API_URL或'http://localhost:3000'）
+- `-k, --api-key <key>`: API密钥（默认为环境变量中的API_KEY）
 - `-e, --email <email>`: API邮箱（默认为环境变量中的API_EMAIL）
 - `-p, --password <password>`: API密码（默认为环境变量中的API_PASSWORD）
 - `-d, --describe`: 使用AI为图片生成描述
@@ -397,70 +526,51 @@ node dist/index.js path/to/markdown.md --describe
 - `--openai-key <key>`: OpenAI API密钥（默认为环境变量中的OPENAI_API_KEY）
 - `--xai-key <key>`: Grok (XAI) API密钥（默认为环境变量中的XAI_API_KEY）
 
-#### 图片描述功能
+## API密钥认证详解
 
-当启用图片描述功能（使用`--describe`选项）时，工具会为没有alt文本的图片生成简短描述。这对于以下场景特别有用：
+### API密钥权限
 
-1. **提高可访问性**：为图片添加有意义的alt text，帮助屏幕阅读器用户
-2. **增强RAG系统**：为检索增强生成系统提供更好的图片上下文
-3. **改善SEO**：搜索引擎可以更好地理解图片内容
-4. **内容组织**：帮助更好地分类和搜索图片内容
+每个API密钥可以有以下权限：
 
-描述生成过程：
+- `read`: 允许读取数据（GET请求）
+- `write`: 允许创建和更新数据（POST, PUT, PATCH请求）
+- `delete`: 允许删除数据（DELETE请求）
+- `admin`: 授予所有权限
 
-1. 对于本地图片，工具会读取文件并发送到AI进行分析
-2. 对于远程图片，工具会下载图片并发送到AI进行分析
-3. 对于base64图片，工具会解码数据并发送到AI进行分析
+创建API密钥时，可以指定要授予的权限：
 
-生成的描述会替换原始alt文本（如果为空），并保留在更新后的Markdown中。
-
-##### 示例
-
-假设有以下Markdown文件：
-
-\`\`\`markdown
-# 我的文档
-
-这是一个没有alt文本的本地图片：
-![][./images/local.png]
-
-这是一个有alt文本的远程图片：
-![远程图片](https://example.com/image.jpg)
-
-这是一个base64图片：
-![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJ5gMtggQAAAABJRU5ErkJggg==)
+\`\`\`json
+{
+  "name": "Read-Only Key",
+  "permissions": ["read"]
+}
 \`\`\`
 
-使用图片描述功能处理后，结果可能如下：
+如果不指定权限，默认会授予`read`和`write`权限。
 
-\`\`\`markdown
-# 我的文档
+### API密钥过期
 
-这是一个没有alt文本的本地图片：
-![一只橙色猫咪坐在窗台上](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/7b52009b-bfd9-4e2b-0d93-839c55f10200.png)
+创建API密钥时，可以设置过期时间：
 
-这是一个有alt文本的远程图片：
-![远程图片](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/3fdba35f-04cd-4e2e-8c84-96a4413c0201.jpg)
-
-这是一个base64图片：
-![简单的白色背景上的黑点](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d.png)
+\`\`\`json
+{
+  "name": "Temporary Key",
+  "permissions": ["read", "write"],
+  "expiresAt": "2024-12-31T23:59:59Z"
+}
 \`\`\`
 
-注意：只有原始alt文本为空的图片才会生成新的描述。
+如果不设置过期时间，API密钥将永不过期，直到被手动停用或删除。
 
-#### 性能考虑
+### API密钥安全最佳实践
 
-当使用AI描述功能处理大量图片时，请注意以下几点：
-
-1. **处理时间**：每个图片都需要进行API调用，这会增加处理时间
-2. **API限制**：注意OpenAI和Grok的API调用限制
-3. **成本**：每次图片描述都会产生API调用费用
-
-对于包含大量图片的文档，可以考虑：
-
-1. **分批处理**：将文档分成多个部分进行处理
-2. **实现缓存**：缓存已处理过的图片描述，避免重复处理
-3. **选择性处理**：只为特定的图片生成描述
+1. **永不共享API密钥**: 将API密钥视为密码
+2. **使用环境变量**: 将API密钥存储在环境变量中，而不是代码中
+3. **限制权限**: 为每个API密钥只授予所需的最小权限
+4. **设置过期日期**: 对于敏感操作，考虑设置过期日期
+5. **定期轮换密钥**: 定期创建新密钥并删除旧密钥
+6. **监控使用情况**: 跟踪API密钥的使用时间和方式
+7. **立即撤销**: 如果密钥泄露，立即撤销它
 
 ## 认证系统详解
 
@@ -471,12 +581,20 @@ node dist/index.js path/to/markdown.md --describe
 3. **令牌验证**：服务器验证令牌的有效性和过期时间
 4. **访问控制**：根据令牌中的用户ID确定资源访问权限
 
+### API密钥认证流程
+
+1. **创建API密钥**：用户通过JWT认证创建API密钥
+2. **密钥使用**：客户端在请求中通过`X-API-Key`头部发送密钥
+3. **密钥验证**：服务器验证密钥的有效性、权限和过期时间
+4. **访问控制**：根据密钥关联的用户ID和权限确定资源访问权限
+
 ### 安全特性
 
 - 密码使用bcrypt进行哈希处理，不会明文存储
 - JWT令牌有24小时的过期时间
+- API密钥可以设置自定义过期时间
 - 用户只能访问和修改自己的资源（集合和图片）
-- 所有敏感操作都需要有效的认证令牌
+- 所有敏感操作都需要有效的认证
 
 ### 用户数据存储
 
@@ -488,6 +606,20 @@ node dist/index.js path/to/markdown.md --describe
 - 哈希密码
 - 创建时间
 
+### API密钥存储
+
+API密钥存储在`DATA_ROOT`目录下的`api-keys.json`文件中。每个API密钥记录包含：
+
+- 唯一ID
+- 密钥值
+- 名称
+- 关联的用户ID
+- 创建时间
+- 最后使用时间
+- 过期时间（可选）
+- 活动状态
+- 权限列表
+
 ## 在Vercel上部署
 
 本项目已配置为可以直接部署到Vercel。
@@ -498,6 +630,7 @@ node dist/index.js path/to/markdown.md --describe
    - `DATA_ROOT`: 在Vercel上，这应该设置为`/tmp/data`或其他可写目录
    - `IMAGE_ROOT_URL`: 设置为您的Vercel域名，例如`https://your-project.vercel.app/images/`
    - `JWT_SECRET`: 设置一个安全的密钥用于JWT令牌生成（**非常重要**：使用强密钥）
+   - `API_KEY`: 可选，设置一个默认的API密钥
    - `AI_PROVIDER`: 设置为`openai`或`xai`（如果使用图片描述功能）
    - `OPENAI_API_KEY`: 设置您的OpenAI API密钥（如果使用OpenAI）
    - `XAI_API_KEY`: 设置您的Grok API密钥（如果使用Grok）
@@ -521,47 +654,44 @@ npm run dev
 ### 使用fetch API进行认证和上传
 
 \`\`\`javascript
-// 用户登录
-async function login(email, password) {
-  const response = await fetch('http://your-api.com/auth/login', {
+// 使用API密钥认证
+async function uploadWithApiKey() {
+  const apiKey = 'your-api-key';
+  const formData = new FormData();
+  formData.append('images', fileInput.files[0]);
+  
+  const response = await fetch(`http://your-api.com/collections/your-collection-id/images`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'X-API-Key': apiKey
     },
-    body: JSON.stringify({ email, password })
-  });
-  
-  const data = await response.json();
-  localStorage.setItem('token', data.token);
-  return data.user;
-}
-
-// 创建集合
-async function createCollection(name) {
-  const token = localStorage.getItem('token');
-  
-  const response = await fetch('http://your-api.com/collections', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ name })
+    body: formData
   });
   
   return await response.json();
 }
 
-// 上传图片
-async function uploadImages(collectionId, files) {
-  const token = localStorage.getItem('token');
+// 使用JWT认证
+async function uploadWithJWT() {
+  // 先登录获取JWT令牌
+  const loginResponse = await fetch('http://your-api.com/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ 
+      email: 'user@example.com', 
+      password: 'password123' 
+    })
+  });
+  
+  const { token } = await loginResponse.json();
+  
+  // 使用JWT令牌上传图片
   const formData = new FormData();
+  formData.append('images', fileInput.files[0]);
   
-  for (const file of files) {
-    formData.append('images', file);
-  }
-  
-  const response = await fetch(`http://your-api.com/collections/${collectionId}/images`, {
+  const response = await fetch(`http://your-api.com/collections/your-collection-id/images`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -572,15 +702,6 @@ async function uploadImages(collectionId, files) {
   return await response.json();
 }
 \`\`\`
-
-## 安全注意事项
-
-1. **JWT密钥**: 在生产环境中，使用强密钥并保持其私密性
-2. **密码策略**: 实施强密码策略，要求最小长度和复杂性
-3. **HTTPS**: 确保所有API通信都通过HTTPS进行
-4. **CORS**: 根据需要配置CORS策略，限制允许的来源
-5. **速率限制**: 考虑实施API速率限制以防止滥用
-6. **API密钥安全**: 保护您的AI API密钥，避免泄露
 
 ## 扩展功能
 
@@ -595,6 +716,7 @@ async function uploadImages(collectionId, files) {
 7. **电子邮件验证**: 添加新用户注册的电子邮件验证
 8. **批量处理**: 添加批量处理多个Markdown文件的功能
 9. **图片描述缓存**: 实现图片描述缓存，避免重复处理相同图片
+10. **API密钥使用分析**: 添加API密钥使用情况的分析和报告功能
 
 ## 贡献
 
@@ -603,3 +725,6 @@ async function uploadImages(collectionId, files) {
 ## 许可证
 
 [MIT](LICENSE)
+\`\`\`
+
+现在，让我们更新客户端的README.md文件，添加API密钥认证的说明：

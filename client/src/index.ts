@@ -25,6 +25,7 @@ program
   .option("-u, --url <url>", "API URL", process.env.API_URL || "http://localhost:3000")
   .option("-e, --email <email>", "API email", process.env.API_EMAIL)
   .option("-p, --password <password>", "API password", process.env.API_PASSWORD)
+  .option("-k, --api-key <key>", "API key for authentication", process.env.API_KEY)
   .option("-d, --describe", "Generate descriptions for images using AI")
   .option(
     "--ai-provider <provider>",
@@ -41,11 +42,11 @@ program
         process.exit(1)
       }
 
-      // Validate required options
-      if (!options.email || !options.password) {
+      // 验证认证选项
+      if (!options.apiKey && (!options.email || !options.password)) {
         console.error(
           chalk.red(
-            "Error: Email and password are required. Set them via command line options or environment variables.",
+            "Error: Either API key or email/password are required. Set them via command line options or environment variables.",
           ),
         )
         process.exit(1)
@@ -69,7 +70,11 @@ program
       const outputFile = options.output || file
 
       console.log(chalk.blue("Initializing API client..."))
-      const apiClient = new ApiClient(options.url, options.email, options.password)
+      const apiClient = new ApiClient(options.url, {
+        email: options.email,
+        password: options.password,
+        apiKey: options.apiKey,
+      })
       await apiClient.initialize()
 
       // Initialize image describer if needed
