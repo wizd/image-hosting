@@ -1,30 +1,92 @@
-# Typescript image server
+# Image Hosting Service
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A TypeScript service for image hosting that allows users to create collections and upload images.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/wizds-projects/v0-typescript-image-server)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/b5aMD7bUGPg)
+## Features
 
-## Overview
+- Create named collections with unique IDs
+- Upload multiple images to collections
+- Automatic UUID generation for collections and files
+- JSON responses with image metadata
+- Configurable storage and URL paths
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Setup
 
-## Deployment
+1. Clone the repository
+2. Install dependencies:
+   \`\`\`
+   npm install
+   \`\`\`
+3. Create a `.env` file based on `.env.example`:
+   \`\`\`
+   DATA_ROOT=./data
+   IMAGE_ROOT_URL=http://localhost:3000/images/
+   PORT=3000
+   \`\`\`
+4. Build the project:
+   \`\`\`
+   npm run build
+   \`\`\`
+5. Start the server:
+   \`\`\`
+   npm start
+   \`\`\`
 
-Your project is live at:
+## API Endpoints
 
-**[https://vercel.com/wizds-projects/v0-typescript-image-server](https://vercel.com/wizds-projects/v0-typescript-image-server)**
+### Create a Collection
 
-## Build your app
+\`\`\`
+POST /collections
+Content-Type: application/json
 
-Continue building your app on:
+{
+  "name": "my-collection"
+}
+\`\`\`
 
-**[https://v0.dev/chat/projects/b5aMD7bUGPg](https://v0.dev/chat/projects/b5aMD7bUGPg)**
+Response:
+\`\`\`json
+{
+  "collectionId": "550e8400-e29b-41d4-a716-446655440000",
+  "collectionName": "my-collection"
+}
+\`\`\`
 
-## How It Works
+### Upload Images to a Collection
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+\`\`\`
+POST /collections/:collectionId/images
+Content-Type: multipart/form-data
+
+images: [file1, file2, ...]
+\`\`\`
+
+Response:
+\`\`\`json
+{
+  "collectionId": "550e8400-e29b-41d4-a716-446655440000",
+  "images": [
+    {
+      "originalName": "image1.jpg",
+      "fileId": "7b52009b-bfd9-4e2b-0d93-839c55f10200",
+      "fileExtension": ".jpg",
+      "fullUrl": "http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/7b52009b-bfd9-4e2b-0d93-839c55f10200.jpg"
+    },
+    {
+      "originalName": "image2.png",
+      "fileId": "3fdba35f-04cd-4e2e-8c84-96a4413c0201",
+      "fileExtension": ".png",
+      "fullUrl": "http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/3fdba35f-04cd-4e2e-8c84-96a4413c0201.png"
+    }
+  ]
+}
+\`\`\`
+
+### Access an Image
+
+\`\`\`
+GET /images/:collectionId/:fileId
+\`\`\`
+
+Returns the image file.
