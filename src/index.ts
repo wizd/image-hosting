@@ -1,4 +1,4 @@
-import express from "express"
+import express, { Express } from "express"
 import { v4 as uuidv4 } from "uuid"
 import multer from "multer"
 import path from "path"
@@ -38,7 +38,7 @@ if (!fs.existsSync(CONFIG.DATA_ROOT)) {
   fs.mkdirSync(CONFIG.DATA_ROOT, { recursive: true })
 }
 
-const app = express()
+const app: Express = express()
 app.use(express.json({ limit: "50mb" })) // Increased limit for base64 images
 app.use(cors())
 

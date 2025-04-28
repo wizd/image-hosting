@@ -1,8 +1,6 @@
 import fs from "fs"
 import axios from "axios"
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { xai } from "@ai-sdk/xai"
+import OpenAI from "openai"
 import sharp from "sharp"
 
 // 支持的AI提供商
@@ -11,10 +9,12 @@ type AIProvider = "openai" | "xai"
 export class ImageDescriber {
   private provider: AIProvider
   private apiKey: string
+  private openai: OpenAI
 
   constructor(provider: AIProvider, apiKey: string) {
     this.provider = provider
     this.apiKey = apiKey
+    this.openai = new OpenAI({ apiKey })
   }
 
   /**
@@ -131,14 +131,30 @@ export class ImageDescriber {
    */
   private async describeWithOpenAI(dataUri: string): Promise<string> {
     try {
-      const { text } = await generateText({
-        model: openai("gpt-4o", { apiKey: this.apiKey }),
-        prompt: "Describe this image in a brief phrase (10 words or less):",
-        images: [dataUri],
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4-vision-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Describe this image in a brief phrase (10 words or less):"
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUri
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 100
       })
 
       // 清理和简化描述
-      return this.cleanDescription(text)
+      return this.cleanDescription(response.choices[0].message.content || "")
     } catch (error) {
       console.error(`OpenAI error: ${error instanceof Error ? error.message : String(error)}`)
       return "Image"
@@ -150,14 +166,39 @@ export class ImageDescriber {
    */
   private async describeWithXAI(dataUri: string): Promise<string> {
     try {
-      const { text } = await generateText({
-        model: xai("grok-1", { apiKey: this.apiKey }),
-        prompt: "Describe this image in a brief phrase (10 words or less):",
-        images: [dataUri],
-      })
+      const response = await axios.post(
+        "https://api.xai.com/v1/chat/completions",
+        {
+          model: "grok-1",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Describe this image in a brief phrase (10 words or less):"
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: dataUri
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 100
+        },
+        {
+          headers: {
+            "Authorization": `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json"
+          }
+        }
+      )
 
       // 清理和简化描述
-      return this.cleanDescription(text)
+      return this.cleanDescription(response.data.choices[0].message.content)
     } catch (error) {
       console.error(`XAI error: ${error instanceof Error ? error.message : String(error)}`)
       return "Image"

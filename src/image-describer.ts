@@ -1,20 +1,19 @@
 import fs from "fs"
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { xai } from "@ai-sdk/xai"
+import OpenAI from "openai"
 import axios from "axios"
 import sharp from "sharp"
 
 export class ImageDescriber {
-  constructor(apiKey, provider = "xai") {
-    this.apiKey = apiKey
-    this.provider = provider
+  private openai: OpenAI
+
+  constructor(apiKey: string) {
+    this.openai = new OpenAI({ apiKey })
   }
 
   /**
    * Generate a description for an image file
    */
-  async describeImageFile(imagePath) {
+  async describeImageFile(imagePath: string): Promise<string> {
     try {
       console.log(`Processing image: ${imagePath}`)
 
@@ -23,7 +22,7 @@ export class ImageDescriber {
       const base64Image = imageBuffer.toString("base64")
       const dataUri = `data:image/jpeg;base64,${base64Image}`
 
-      // Generate description using the selected AI provider
+      // Generate description using OpenAI
       return await this.generateDescription(dataUri)
     } catch (error) {
       console.error(`Error describing image: ${error instanceof Error ? error.message : String(error)}`)
@@ -34,7 +33,7 @@ export class ImageDescriber {
   /**
    * Generate a description for a remote image URL
    */
-  async describeImageUrl(imageUrl) {
+  async describeImageUrl(imageUrl: string): Promise<string> {
     try {
       console.log(`Downloading image from: ${imageUrl}`)
 
@@ -44,7 +43,7 @@ export class ImageDescriber {
       const base64Image = imageBuffer.toString("base64")
       const dataUri = `data:image/jpeg;base64,${base64Image}`
 
-      // Generate description using the selected AI provider
+      // Generate description using OpenAI
       return await this.generateDescription(dataUri)
     } catch (error) {
       console.error(`Error describing remote image: ${error instanceof Error ? error.message : String(error)}`)
@@ -55,7 +54,7 @@ export class ImageDescriber {
   /**
    * Generate a description for a base64 image
    */
-  async describeBase64Image(base64Data) {
+  async describeBase64Image(base64Data: string): Promise<string> {
     try {
       // Extract the base64 data
       const matches = base64Data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/)
@@ -69,7 +68,7 @@ export class ImageDescriber {
       const optimizedBase64 = optimizedBuffer.toString("base64")
       const dataUri = `data:image/jpeg;base64,${optimizedBase64}`
 
-      // Generate description using the selected AI provider
+      // Generate description using OpenAI
       return await this.generateDescription(dataUri)
     } catch (error) {
       console.error(`Error describing base64 image: ${error instanceof Error ? error.message : String(error)}`)
@@ -78,30 +77,33 @@ export class ImageDescriber {
   }
 
   /**
-   * Generate a description using the selected AI provider
+   * Generate a description using OpenAI
    */
-  async generateDescription(dataUri) {
+  private async generateDescription(dataUri: string): Promise<string> {
     try {
-      console.log(`Generating description with ${this.provider}...`)
+      console.log("Generating description with OpenAI...")
 
-      let result
-      if (this.provider === "openai") {
-        result = await generateText({
-          model: openai("gpt-4o", { apiKey: this.apiKey }),
-          prompt: "Describe this image in a brief phrase (10 words or less):",
-          images: [dataUri],
-        })
-      } else {
-        // Default to XAI/Grok
-        result = await generateText({
-          model: xai("grok-1", { apiKey: this.apiKey }),
-          prompt: "Describe this image in a brief phrase (10 words or less):",
-          images: [dataUri],
-        })
-      }
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4-vision-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Describe this image in a brief phrase (10 words or less):" },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUri,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 50,
+      })
 
       // Clean up the description
-      const description = this.cleanDescription(result.text)
+      const description = this.cleanDescription(response.choices[0].message.content || "")
       console.log(`Generated description: "${description}"`)
       return description
     } catch (error) {
@@ -113,7 +115,7 @@ export class ImageDescriber {
   /**
    * Read and optimize an image file
    */
-  async prepareImage(imagePath) {
+  private async prepareImage(imagePath: string): Promise<Buffer> {
     const imageBuffer = fs.readFileSync(imagePath)
     return this.optimizeImageBuffer(imageBuffer)
   }
@@ -121,7 +123,7 @@ export class ImageDescriber {
   /**
    * Optimize an image buffer for AI processing
    */
-  async optimizeImageBuffer(buffer) {
+  private async optimizeImageBuffer(buffer: Buffer): Promise<Buffer> {
     try {
       // Resize and optimize the image for AI processing
       return await sharp(buffer)
@@ -142,7 +144,7 @@ export class ImageDescriber {
   /**
    * Clean up the AI-generated description
    */
-  cleanDescription(text) {
+  private cleanDescription(text: string): string {
     // Remove extra whitespace and punctuation
     let cleaned = text.trim()
 
@@ -156,4 +158,4 @@ export class ImageDescriber {
 
     return cleaned
   }
-}
+} 

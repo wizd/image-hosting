@@ -23,7 +23,7 @@ export class ApiClient {
   private apiKey?: string
   private token: string | null = null
   private client: AxiosInstance
-  private collectionId: string | null = null
+  private collectionId: string = ""
   private collectionName: string | null = null
 
   constructor(baseUrl: string, authOptions: AuthOptions) {

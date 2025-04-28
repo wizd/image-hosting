@@ -1,4 +1,4 @@
-import express from "express"
+import express, { Express } from "express"
 import multer from "multer"
 import path from "path"
 import fs from "fs"
@@ -18,7 +18,7 @@ if (!fs.existsSync(DATA_ROOT)) {
   fs.mkdirSync(DATA_ROOT, { recursive: true })
 }
 
-const app = express()
+const app: Express = express()
 app.use(express.json())
 app.use(cors())
 
