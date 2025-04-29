@@ -14,18 +14,11 @@ export async function processMarkdown(
   apiClient: ApiClient,
   collectionName: string,
   basePath: string,
-  imageDescriber: any = null,
-  apiKey?: string
+  imageDescriber: any = null
 ): Promise<string> {
   let processedMarkdown = markdown;
 
   console.log(chalk.cyan("\n=== Starting Markdown Processing ==="));
-
-  // Set API key if provided
-  if (apiKey) {
-    console.log(chalk.blue("Using API key authentication"));
-    apiClient.setApiKey(apiKey);
-  }
 
   // Process local images
   console.log(chalk.cyan("\n--- Processing Local Images ---"));
