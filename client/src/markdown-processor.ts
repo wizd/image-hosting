@@ -12,26 +12,76 @@ const BASE64_IMAGE_REGEX =
 
 // Helper function to get surrounding paragraphs
 function getSurroundingParagraphs(markdown: string, matchIndex: number): { beforeText: string; afterText: string } {
-  // 获取匹配位置之前的文本
-  const beforeText = markdown.slice(0, matchIndex);
-  // 获取匹配位置之后的文本
-  const afterText = markdown.slice(matchIndex + 1);
+  // 将markdown按行分割
+  const lines = markdown.split("\n");
 
-  // 将文本按行分割
-  const beforeLines = beforeText.split("\n").reverse();
-  const afterLines = afterText.split("\n");
+  // 找到matchIndex所在的行号
+  let currentLineIndex = 0;
+  let currentPosition = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const lineLength = lines[i].length + 1; // +1 for the newline character
+    if (currentPosition + lineLength > matchIndex) {
+      currentLineIndex = i;
+      break;
+    }
+    currentPosition += lineLength;
+  }
 
-  // 找到最近的前一个非空文本行
-  const beforeParagraph =
-    beforeLines.find((line) => line.trim().length > 0) || "";
+  // 定义图片和文本的正则表达式
+  const imageRegex = /!\[([^\]]*)\](?:\([^)]+\))/;
+  const meaningfulTextRegex = /^[^!\[].*\S/;
 
-  // 找到最近的后一个非空文本行
-  const afterParagraph =
-    afterLines.find((line) => line.trim().length > 0) || "";
+  // 向前搜索最近的有意义内容
+  let beforeText = "";
+  for (let i = currentLineIndex - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line.length === 0) continue;
+
+    const imageMatch = line.match(imageRegex);
+    if (imageMatch) {
+      // 如果是图片，提取alt text
+      beforeText = imageMatch[1] || "";
+      break;
+    } else if (meaningfulTextRegex.test(line)) {
+      // 如果是普通文本
+      beforeText = line;
+      break;
+    }
+  }
+
+  // 向后搜索最近的有意义内容
+  let afterText = "";
+  for (let i = currentLineIndex + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.length === 0) continue;
+
+    // 确保我们获取完整的行
+    let fullContent = line;
+    let j = i + 1;
+    while (
+      j < lines.length &&
+      !fullContent.includes(")") &&
+      (fullContent.includes("![") || fullContent.includes("]("))
+    ) {
+      fullContent += " " + lines[j].trim();
+      j++;
+    }
+
+    const imageMatch = fullContent.match(imageRegex);
+    if (imageMatch) {
+      // 如果是图片，提取alt text
+      afterText = imageMatch[1] || "";
+      break;
+    } else if (meaningfulTextRegex.test(fullContent)) {
+      // 如果是普通文本
+      afterText = fullContent.replace(/\[([^\]]*)\](?:\([^)]+\))/, "").trim();
+      break;
+    }
+  }
 
   return {
-    beforeText: beforeParagraph.trim(),
-    afterText: afterParagraph.trim(),
+    beforeText: beforeText.trim(),
+    afterText: afterText.trim(),
   };
 }
 
