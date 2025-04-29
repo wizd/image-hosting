@@ -9,6 +9,7 @@ client/dist/
 # 环境变量
 .env
 client/.env
+.env.test
 
 # 数据目录
 data/

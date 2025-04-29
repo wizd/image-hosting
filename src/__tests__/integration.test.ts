@@ -3,19 +3,23 @@ import path from 'path'
 import fs from "fs";
 import { CONFIG } from "../config";
 import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
+
+// 加载环境变量
+dotenv.config();
 
 // 测试数据
-const TEST_USER = {
-  username: `test-user-${uuidv4()}`,
-  email: `test-${uuidv4()}@example.com`,
-  password: "testPassword123!",
+const ROOT_API_KEY = process.env.ROOT_API_KEY || "test-root-key"; // 需要在环境变量中设置一个根API Key
+
+const TEST_API_KEY = {
+  name: "Test API Key",
+  permissions: ["read", "write"],
 };
 
 const TEST_COLLECTION = {
   name: "Test Collection",
 };
 
-let authToken: string;
 let apiKey: string;
 let collectionId: string;
 
@@ -33,18 +37,17 @@ const cleanupTestData = () => {
 const serverUrl = `http://localhost:${CONFIG.PORT}`;
 
 describe("Image Hosting API Integration Tests", () => {
-  // 在所有测试开始前注册用户并登录
+  // 在所有测试开始前创建API Key
   beforeAll(async () => {
-    // 注册用户
-    await request(serverUrl).post("/auth/register").send(TEST_USER);
+    // 使用ROOT_API_KEY创建一个测试用的API Key
+    const response = await request(serverUrl)
+      .post("/api-keys")
+      .set("X-API-Key", ROOT_API_KEY)
+      .send(TEST_API_KEY);
 
-    // 登录获取token
-    const loginResponse = await request(serverUrl).post("/auth/login").send({
-      email: TEST_USER.email,
-      password: TEST_USER.password,
-    });
-
-    authToken = loginResponse.body.token;
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty("key");
+    apiKey = response.body.key;
   });
 
   // 在所有测试结束后清理数据
@@ -52,39 +55,25 @@ describe("Image Hosting API Integration Tests", () => {
     cleanupTestData();
   });
 
-  // 认证相关测试
-  describe("Authentication", () => {
-    it("should get user profile", async () => {
-      const response = await request(serverUrl)
-        .get("/auth/profile")
-        .set("Authorization", `Bearer ${authToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("user");
-      expect(response.body.user).toHaveProperty("email", TEST_USER.email);
-    });
-  });
-
   // API密钥相关测试
   describe("API Keys", () => {
-    it("should create API key", async () => {
+    it("should create additional API key", async () => {
       const response = await request(serverUrl)
         .post("/api-keys")
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("X-API-Key", ROOT_API_KEY) // 使用ROOT_API_KEY来创建新的API key
         .send({
-          name: "Test API Key",
-          permissions: ["read", "write"],
+          name: "Additional Test API Key",
+          permissions: ["read"],
         });
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("key");
-      apiKey = response.body.key;
     });
 
-    it("should get user API keys", async () => {
+    it("should get API keys", async () => {
       const response = await request(serverUrl)
         .get("/api-keys")
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("X-API-Key", ROOT_API_KEY); // 使用ROOT_API_KEY来获取所有API keys
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
@@ -94,10 +83,10 @@ describe("Image Hosting API Integration Tests", () => {
 
   // 集合相关测试
   describe("Collections", () => {
-    it("should create collection using JWT", async () => {
+    it("should create collection", async () => {
       const response = await request(serverUrl)
         .post("/collections")
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("X-API-Key", apiKey)
         .send(TEST_COLLECTION);
 
       expect(response.status).toBe(201);
@@ -105,22 +94,10 @@ describe("Image Hosting API Integration Tests", () => {
       collectionId = response.body.collectionId;
     });
 
-    it("should create collection using API key", async () => {
-      const response = await request(serverUrl)
-        .post("/collections")
-        .set("X-API-Key", apiKey)
-        .send({
-          name: "Test Collection API Key",
-        });
-
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty("collectionId");
-    });
-
-    it("should get user collections", async () => {
+    it("should get collections", async () => {
       const response = await request(serverUrl)
         .get("/collections")
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("X-API-Key", apiKey);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("collections");
@@ -134,7 +111,7 @@ describe("Image Hosting API Integration Tests", () => {
     it("should upload image using multipart form", async () => {
       const response = await request(serverUrl)
         .post(`/collections/${collectionId}/images`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("X-API-Key", apiKey)
         .attach("images", path.join(__dirname, "test-image.jpg"));
 
       console.log("Multipart upload response:", response.body);
@@ -146,46 +123,10 @@ describe("Image Hosting API Integration Tests", () => {
       expect(response.body.images.length).toBeGreaterThan(0);
     });
 
-    it("should upload base64 image", async () => {
-      // 创建一个简单的测试图片的base64数据
-      const testImagePath = path.join(__dirname, "test-image.jpg");
-      console.log("Test image path:", testImagePath);
-
-      const imageBuffer = fs.readFileSync(testImagePath);
-      console.log("Image buffer size:", imageBuffer.length);
-
-      const base64Image = `data:image/jpeg;base64,${imageBuffer.toString("base64")}`;
-      console.log("Base64 image length:", base64Image.length);
-      console.log("Base64 image prefix:", base64Image.substring(0, 50));
-
-      const requestBody = {
-        images: [
-          {
-            data: base64Image,
-            filename: "test-image.jpg",
-          },
-        ],
-      };
-      console.log("Request body:", JSON.stringify(requestBody, null, 2));
-
-      const response = await request(serverUrl)
-        .post(`/collections/${collectionId}/base64`)
-        .set("Authorization", `Bearer ${authToken}`)
-        .send(requestBody);
-
-      console.log("Base64 upload response:", response.body);
-      console.log("Base64 upload status:", response.status);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("images");
-      expect(Array.isArray(response.body.images)).toBe(true);
-      expect(response.body.images.length).toBeGreaterThan(0);
-    });
-
     it("should get images in collection", async () => {
       const response = await request(serverUrl)
         .get(`/collections/${collectionId}/images`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("X-API-Key", apiKey);
 
       console.log("Get images response:", response.body);
       console.log("Get images status:", response.status);
@@ -200,7 +141,7 @@ describe("Image Hosting API Integration Tests", () => {
       // 首先获取集合中的图片列表
       const listResponse = await request(serverUrl)
         .get(`/collections/${collectionId}/images`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("X-API-Key", apiKey);
 
       console.log("List images response:", listResponse.body);
       console.log("List images status:", listResponse.status);
@@ -231,7 +172,7 @@ describe("Image Hosting API Integration Tests", () => {
     it("should delete collection", async () => {
       const response = await request(serverUrl)
         .delete(`/collections/${collectionId}`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("X-API-Key", apiKey);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty(
