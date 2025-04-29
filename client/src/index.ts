@@ -22,7 +22,7 @@ program
   .argument("<file>", "Markdown file to process")
   .option(
     "-o, --output <file>",
-    "Output file (defaults to overwriting input file)"
+    "Output file (defaults to input filename with '.hosted' suffix)"
   )
   .option(
     "-c, --collection <name>",
@@ -87,7 +87,16 @@ program
         }
       }
 
-      const outputFile = options.output || file;
+      // Generate output filename if not specified
+      const outputFile =
+        options.output ||
+        (() => {
+          const parsedPath = path.parse(file);
+          return path.join(
+            parsedPath.dir,
+            `${parsedPath.name}.hosted${parsedPath.ext}`
+          );
+        })();
 
       console.log(chalk.blue("Initializing API client..."));
       const apiClient = new ApiClient(options.url, {
