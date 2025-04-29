@@ -80,7 +80,7 @@ app.delete(
 
 // Create a new collection
 app.post(
-  "/collections",
+  "/v1/collections",
   authenticateApiKey,
   async (req: ApiKeyRequest, res) => {
     try {
@@ -93,13 +93,22 @@ app.post(
       const collectionId = uuidv4();
       const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
 
+      // Check if directory already exists
+      if (fs.existsSync(collectionPath)) {
+        return res.status(409).json({ error: "Collection ID already exists" });
+      }
+
       // Create collection directory
       fs.mkdirSync(collectionPath, { recursive: true });
 
       // Save collection metadata
       fs.writeFileSync(
         path.join(collectionPath, "metadata.json"),
-        JSON.stringify({ name, createdAt: new Date().toISOString() })
+        JSON.stringify({
+          name,
+          createdAt: new Date().toISOString(),
+          id: collectionId, // Include ID in metadata
+        })
       );
 
       const response: CollectionResponse = {
@@ -116,48 +125,72 @@ app.post(
 );
 
 // Get collections
-app.get("/collections", authenticateApiKey, async (req: ApiKeyRequest, res) => {
-  try {
-    const collections: CollectionResponse[] = [];
+app.get(
+  "/v1/collections",
+  authenticateApiKey,
+  async (req: ApiKeyRequest, res) => {
+    try {
+      const collections: CollectionResponse[] = [];
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-    // Read all collection directories
-    const collectionDirs = fs
-      .readdirSync(CONFIG.DATA_ROOT, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory())
-      .map((dirent) => dirent.name);
+      // Read all collection directories
+      const collectionDirs = fs
+        .readdirSync(CONFIG.DATA_ROOT, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name)
+        .filter((name) => uuidRegex.test(name)); // Only return directories with valid UUID format
 
-    // Get all collections
-    for (const collectionId of collectionDirs) {
-      const metadataPath = path.join(
-        CONFIG.DATA_ROOT,
-        collectionId,
-        "metadata.json"
-      );
-
-      if (fs.existsSync(metadataPath)) {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
-        collections.push({
+      // Get all collections
+      for (const collectionId of collectionDirs) {
+        const metadataPath = path.join(
+          CONFIG.DATA_ROOT,
           collectionId,
-          collectionName: metadata.name,
-        });
-      }
-    }
+          "metadata.json"
+        );
 
-    res.status(200).json({ collections });
-  } catch (error) {
-    console.error("Error getting collections:", error);
-    res.status(500).json({ error: "Failed to get collections" });
+        if (fs.existsSync(metadataPath)) {
+          try {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+            collections.push({
+              collectionId,
+              collectionName: metadata.name || collectionId,
+            });
+          } catch (error) {
+            console.error(
+              `Error reading metadata for collection ${collectionId}:`,
+              error
+            );
+            // Skip this collection if metadata is invalid
+            continue;
+          }
+        }
+      }
+
+      res.status(200).json({ collections });
+    } catch (error) {
+      console.error("Error getting collections:", error);
+      res.status(500).json({ error: "Failed to get collections" });
+    }
   }
-});
+);
 
 // Upload images to a collection
 app.post(
-  "/collections/:collectionId/images",
+  "/v1/collections/:collectionId/assets",
   upload.array("images"),
   authenticateApiKey,
   async (req: ApiKeyRequest, res) => {
     try {
       const { collectionId } = req.params;
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(collectionId)) {
+        return res.status(400).json({ error: "Invalid collection ID format" });
+      }
+
       const files = req.files as Express.Multer.File[];
 
       if (!files || files.length === 0) {
@@ -202,7 +235,7 @@ app.post(
           originalName: file.originalname,
           fileId,
           fileExtension,
-          fullUrl: `${CONFIG.IMAGE_ROOT_URL}${collectionId}/${fileId}${fileExtension}`,
+          fullUrl: `${CONFIG.IMAGE_ROOT_URL}/v1/assets/${collectionId}/${fileId}${fileExtension}`,
         };
 
         imageMetadata.push(metadata);
@@ -239,11 +272,18 @@ app.post(
 
 // Get images in a collection
 app.get(
-  "/collections/:collectionId/images",
+  "/v1/collections/:collectionId/assets",
   authenticateApiKey,
   async (req: ApiKeyRequest, res) => {
     try {
       const { collectionId } = req.params;
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(collectionId)) {
+        return res.status(400).json({ error: "Invalid collection ID format" });
+      }
 
       const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
 
@@ -275,11 +315,18 @@ app.get(
 
 // Delete a collection
 app.delete(
-  "/collections/:collectionId",
+  "/v1/collections/:collectionId",
   authenticateApiKey,
   async (req: ApiKeyRequest, res) => {
     try {
       const { collectionId } = req.params;
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(collectionId)) {
+        return res.status(400).json({ error: "Invalid collection ID format" });
+      }
 
       const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
 
@@ -300,9 +347,16 @@ app.delete(
 );
 
 // Serve images - public access
-app.get("/images/:collectionId/:fileId", (req, res) => {
+app.get("/v1/assets/:collectionId/:fileId", (req, res) => {
   try {
     const { collectionId, fileId } = req.params;
+
+    // Validate UUID format
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(collectionId)) {
+      return res.status(400).json({ error: "Invalid collection ID format" });
+    }
 
     // Find the file with the matching fileId prefix
     const collectionPath = path.resolve(CONFIG.DATA_ROOT, collectionId);
@@ -331,6 +385,13 @@ app.get("/images/:collectionId/:fileId", (req, res) => {
     if (contentType) {
       res.setHeader("Content-Type", contentType);
     }
+
+    // Add security headers
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; img-src 'self'"
+    );
 
     res.sendFile(imagePath);
   } catch (error) {

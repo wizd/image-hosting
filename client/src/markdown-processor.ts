@@ -20,11 +20,38 @@ export async function processMarkdown(
 
   console.log(chalk.cyan("\n=== Starting Markdown Processing ==="));
 
+  // 确保集合存在并获取集合ID
+  console.log(
+    chalk.cyan(`\n--- Ensuring Collection Exists: ${collectionName} ---`)
+  );
+  let collectionId;
+  try {
+    collectionId = await apiClient.ensureCollection(collectionName);
+    console.log(
+      chalk.green(`Collection created/found with ID: ${collectionId}`)
+    );
+
+    // 验证返回的 UUID 格式
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(collectionId)) {
+      throw new Error(`Invalid collection ID format received: ${collectionId}`);
+    }
+  } catch (error) {
+    console.error(
+      chalk.red(
+        `Error ensuring collection: ${error instanceof Error ? error.message : String(error)}`
+      )
+    );
+    throw error;
+  }
+
   // Process local images
   console.log(chalk.cyan("\n--- Processing Local Images ---"));
   processedMarkdown = await processLocalImages(
     processedMarkdown,
     apiClient,
+    collectionId,
     collectionName,
     basePath,
     imageDescriber
@@ -35,6 +62,7 @@ export async function processMarkdown(
   processedMarkdown = await processRemoteImages(
     processedMarkdown,
     apiClient,
+    collectionId,
     collectionName,
     imageDescriber
   );
@@ -44,6 +72,7 @@ export async function processMarkdown(
   processedMarkdown = await processBase64Images(
     processedMarkdown,
     apiClient,
+    collectionId,
     collectionName,
     imageDescriber
   );
@@ -55,6 +84,7 @@ export async function processMarkdown(
 async function processLocalImages(
   markdown: string,
   apiClient: ApiClient,
+  collectionId: string,
   collectionName: string,
   basePath: string,
   imageDescriber: any = null
@@ -96,11 +126,13 @@ async function processLocalImages(
       }
 
       console.log(
-        chalk.blue(`Uploading local image to collection: ${collectionName}`)
+        chalk.blue(
+          `Uploading local image to collection "${collectionName}" (ID: ${collectionId})`
+        )
       );
       const uploadResult = await apiClient.uploadLocalImage(
         fullPath,
-        collectionName
+        collectionId
       );
 
       // Replace the local image reference with the hosted URL
@@ -126,6 +158,7 @@ async function processLocalImages(
 async function processRemoteImages(
   markdown: string,
   apiClient: ApiClient,
+  collectionId: string,
   collectionName: string,
   imageDescriber: any = null
 ): Promise<string> {
@@ -147,11 +180,13 @@ async function processRemoteImages(
       }
 
       console.log(
-        chalk.blue(`Uploading remote image to collection: ${collectionName}`)
+        chalk.blue(
+          `Uploading remote image to collection "${collectionName}" (ID: ${collectionId})`
+        )
       );
       const uploadResult = await apiClient.uploadRemoteImage(
         remoteUrl,
-        collectionName
+        collectionId
       );
 
       // Replace the remote image reference with the hosted URL
@@ -177,6 +212,7 @@ async function processRemoteImages(
 async function processBase64Images(
   markdown: string,
   apiClient: ApiClient,
+  collectionId: string,
   collectionName: string,
   imageDescriber: any = null
 ): Promise<string> {
@@ -203,11 +239,15 @@ async function processBase64Images(
       }
 
       const filename = `base64-image-${Date.now()}.png`;
-      console.log(chalk.blue(`Uploading base64 image as: ${filename}`));
+      console.log(
+        chalk.blue(
+          `Uploading base64 image to collection "${collectionName}" (ID: ${collectionId})`
+        )
+      );
       const uploadResult = await apiClient.uploadBase64Image(
         base64Data,
         filename,
-        collectionName
+        collectionId
       );
 
       // Replace the base64 image reference with the hosted URL

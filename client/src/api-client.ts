@@ -16,6 +16,11 @@ export interface AuthOptions {
   apiKey?: string
 }
 
+export interface Collection {
+  collectionId: string;
+  collectionName: string;
+}
+
 export class ApiClient {
   private baseUrl: string;
   private email?: string;
@@ -91,27 +96,67 @@ export class ApiClient {
       return this.collectionId;
     }
 
-    // 直接使用集合名称作为 ID
-    this.collectionId = name;
-    this.collectionName = name;
-    return this.collectionId;
+    try {
+      // 确保已经初始化
+      await this.initialize();
+
+      // 获取所有集合
+      const response = await this.client.get<{ collections: Collection[] }>(
+        "/v1/collections"
+      );
+      const existingCollection = response.data.collections.find(
+        (c) => c.collectionName === name
+      );
+
+      if (existingCollection) {
+        this.collectionId = existingCollection.collectionId;
+        this.collectionName = name;
+        return this.collectionId;
+      }
+
+      // 如果集合不存在，创建新集合
+      const createResponse = await this.client.post<{
+        collectionId: string;
+        collectionName: string;
+      }>("/v1/collections", { name });
+
+      // 验证返回的 UUID 格式
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(createResponse.data.collectionId)) {
+        throw new Error(
+          `Server returned invalid collection ID format: ${createResponse.data.collectionId}`
+        );
+      }
+
+      this.collectionId = createResponse.data.collectionId;
+      this.collectionName = name;
+      return this.collectionId;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(
+          `Failed to ensure collection: ${error.response.data.error || error.message}`
+        );
+      }
+      throw new Error(
+        `Failed to ensure collection: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   async uploadLocalImage(
     filePath: string,
-    collectionName: string
+    collectionId: string
   ): Promise<ImageUploadResult> {
     try {
       // 确保已经初始化
       await this.initialize();
 
-      const collectionId = await this.ensureCollection(collectionName);
-
       const formData = new FormData();
       formData.append("images", fs.createReadStream(filePath));
 
       const response = await this.client.post(
-        `/collections/${collectionId}/images`,
+        `/v1/collections/${collectionId}/assets`,
         formData,
         {
           headers: {
@@ -138,7 +183,7 @@ export class ApiClient {
 
   async uploadRemoteImage(
     imageUrl: string,
-    collectionName: string
+    collectionId: string
   ): Promise<ImageUploadResult> {
     try {
       // 确保已经初始化
@@ -161,7 +206,7 @@ export class ApiClient {
         buffer,
         filename,
         contentType,
-        collectionName
+        collectionId
       );
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
@@ -178,7 +223,7 @@ export class ApiClient {
   async uploadBase64Image(
     base64Data: string,
     filename: string,
-    collectionName: string
+    collectionId: string
   ): Promise<ImageUploadResult> {
     try {
       // 确保已经初始化
@@ -198,7 +243,7 @@ export class ApiClient {
         buffer,
         filename,
         contentType,
-        collectionName
+        collectionId
       );
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
@@ -216,13 +261,11 @@ export class ApiClient {
     buffer: Buffer,
     filename: string,
     contentType: string,
-    collectionName: string
+    collectionId: string
   ): Promise<ImageUploadResult> {
     try {
       // 确保已经初始化
       await this.initialize();
-
-      const collectionId = await this.ensureCollection(collectionName);
 
       const formData = new FormData();
       formData.append("images", buffer, {
@@ -231,7 +274,7 @@ export class ApiClient {
       });
 
       const response = await this.client.post(
-        `/collections/${collectionId}/images`,
+        `/v1/collections/${collectionId}/assets`,
         formData,
         {
           headers: {
