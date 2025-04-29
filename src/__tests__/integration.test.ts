@@ -184,11 +184,36 @@ describe("Image Hosting API Integration Tests", () => {
         return;
       }
 
+      // 检查测试图片是否存在
+      const testImagePath = path.join(__dirname, "test-image.jpg");
+      if (!fs.existsSync(testImagePath)) {
+        console.log(
+          chalk.yellow(
+            "Skipping image description test - Test image not found. Please create src/__tests__/test-image.jpg"
+          )
+        );
+        return;
+      }
+
+      // 确保已经上传了图片
+      if (!uploadedImageId) {
+        console.log(
+          chalk.yellow(
+            "Skipping image description test - No image uploaded in previous test"
+          )
+        );
+        return;
+      }
+
       const response = await request(API_URL)
-        .get(
+        .post(
           `/v1/collections/${collectionId}/assets/${uploadedImageId}/description`
         )
-        .set("X-API-Key", apiKey);
+        .set("X-API-Key", apiKey)
+        .send({
+          beforeText: "这是一个测试图片，展示了",
+          afterText: "这个图片说明了测试场景",
+        });
 
       if (
         response.status === 500 &&
@@ -210,11 +235,12 @@ describe("Image Hosting API Integration Tests", () => {
 
     it("should handle invalid image ID for description generation", async () => {
       const response = await request(API_URL)
-        .get(`/v1/collections/${collectionId}/assets/invalid-id/description`)
-        .set("X-API-Key", apiKey);
+        .post(`/v1/collections/${collectionId}/assets/invalid-id/description`)
+        .set("X-API-Key", apiKey)
+        .send({});
 
       expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty("error");
+      expect(response.body).toHaveProperty("error", "Image not found");
     });
   });
 

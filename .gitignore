@@ -38,3 +38,6 @@ tmp/
 temp/
 
 out.md
+
+# 测试文件
+src/__tests__/test.http

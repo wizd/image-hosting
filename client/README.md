@@ -157,6 +157,13 @@ console.log(result.fullUrl);
 // 上传base64图片
 const result = await client.uploadBase64Image(base64Data, "image.png", "my-collection");
 console.log(result.fullUrl);
+
+// 生成图片描述（带上下文）
+const description = await client.generateImageDescription("collection-id", "image-id", {
+  beforeText: "在讨论系统架构时",
+  afterText: "这张图展示了具体的实现细节"
+});
+console.log(description);
 \`\`\`
 
 ### 错误处理
@@ -172,31 +179,44 @@ try {
 }
 \`\`\`
 
-## 技术实现
-
 ### 图片描述生成
 
-图片描述功能使用Vercel AI SDK实现，支持两种AI提供商：
+图片描述功能使用Vercel AI SDK实现，支持两种AI提供商。API支持传入图片的上下文信息，以生成更准确的描述：
 
 \`\`\`typescript
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { xai } from "@ai-sdk/xai"
-
-// 使用OpenAI
-const { text } = await generateText({
-  model: openai("gpt-4o", { apiKey: this.apiKey }),
-  prompt: "Describe this image in a brief phrase (10 words or less):",
-  images: [dataUri],
+// 生成图片描述
+const description = await client.generateImageDescription(imageId, {
+  beforeText: "在讨论系统架构时",
+  afterText: "这张图展示了具体的实现细节"
 })
 
-// 使用Grok (XAI)
-const { text } = await generateText({
-  model: xai("grok-1", { apiKey: this.apiKey }),
-  prompt: "Describe this image in a brief phrase (10 words or less):",
-  images: [dataUri],
-})
+// API实现
+async generateImageDescription(imageId: string, context?: {
+  beforeText?: string;
+  afterText?: string;
+}) {
+  const response = await fetch(`${this.baseUrl}/v1/collections/${collectionId}/assets/${imageId}/description`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': this.apiKey
+    },
+    body: JSON.stringify(context)
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to generate description');
+  }
+  
+  const data = await response.json();
+  return data.description;
+}
 \`\`\`
+
+生成的描述会考虑图片在文档中的上下文，从而提供更准确和相关的描述。例如：
+
+- 没有上下文时：`"一张数据库架构图"`
+- 有上下文时：`"系统架构中的主要数据流程图"`
 
 ### 图片优化
 

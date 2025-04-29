@@ -403,12 +403,13 @@ app.get("/v1/assets/:collectionId/:fileId", (req, res) => {
 });
 
 // Generate AI description for an image
-app.get(
+app.post(
   "/v1/collections/:collectionId/assets/:fileId/description",
   authenticateApiKey,
   async (req: AuthRequest, res) => {
     try {
       const { collectionId, fileId } = req.params;
+      const { beforeText, afterText } = req.body;
 
       // Validate UUID format
       const uuidRegex =
@@ -449,6 +450,21 @@ app.get(
         baseURL: CONFIG.OPENAI_BASE_URL,
       });
 
+      let promptText =
+        "Please provide a concise description of this image, suitable for use as an alt text in markdown. Keep it under 100 characters.";
+
+      if (beforeText || afterText) {
+        promptText = `This image appears in a markdown document. ${
+          beforeText
+            ? `Before the image, the text reads: "${beforeText}". `
+            : ""
+        }${
+          afterText
+            ? `After the image, the text continues: "${afterText}". `
+            : ""
+        }Based on this context and the image content, please provide a concise and contextually relevant alt text description (under 100 characters) that explains the image's role in the document.`;
+      }
+
       const response = await openai.chat.completions.create({
         model: CONFIG.OPENAI_MODEL_NAME as string,
         messages: [
@@ -457,7 +473,7 @@ app.get(
             content: [
               {
                 type: "text",
-                text: "Please provide a concise description of this image, suitable for use as an alt text in markdown. Keep it under 100 characters.",
+                text: promptText,
               },
               {
                 type: "image_url",
