@@ -100,5 +100,18 @@
       "write"
     ],
     "lastUsedAt": "2025-04-29T02:32:08.269Z"
+  },
+  {
+    "id": "2c0ce53d-e1c4-4aa5-9682-90f5d7aae1e3",
+    "key": "suQKKNLS5MpHMLGcX1I0wJlCggtG6v6p5F5VnrFl",
+    "name": "Test API Key",
+    "userId": "be88af0b-46d2-42f5-813f-79608e888f2b",
+    "createdAt": "2025-04-29T03:02:11.607Z",
+    "isActive": true,
+    "permissions": [
+      "read",
+      "write"
+    ],
+    "lastUsedAt": "2025-04-29T03:02:11.619Z"
   }
 ]

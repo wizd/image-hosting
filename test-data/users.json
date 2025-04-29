@@ -54,5 +54,12 @@
     "email": "test-e1cf9417-1b20-49d6-bcdf-816a7b3dbd06@example.com",
     "password": "$2a$10$ZuFHCv/aWGEfvCdz70N5YOykyeLQuP6V18IvHqdyXvQiGFAqkeltq",
     "createdAt": "2025-04-29T02:32:08.196Z"
+  },
+  {
+    "id": "be88af0b-46d2-42f5-813f-79608e888f2b",
+    "username": "test-user-474876cb-0c7b-4124-87b0-24282285d1ec",
+    "email": "test-247ff416-b60e-47cd-8b79-1e7ea6a922aa@example.com",
+    "password": "$2a$10$6pqjrwTvFuqCSwk/e0PB7uu8L2VqfCYwwSJCFNmzy6INJDwU6XHRe",
+    "createdAt": "2025-04-29T03:02:11.535Z"
   }
 ]

@@ -95,7 +95,8 @@ program
         options.collection,
         path.dirname(file),
         imageDescriber,
-      )
+        options.apiKey
+      );
 
       console.log(chalk.blue(`Writing output to: ${outputFile}`))
       fs.writeFileSync(outputFile, processedMarkdown)

@@ -10,149 +10,167 @@ import { authController } from "./auth/auth-controller"
 import { apiKeyController } from "./api-key/api-key-controller"
 import { authenticateApiKey, type ApiKeyRequest } from "./middleware/api-key-middleware"
 import { CONFIG } from "./config"
+import { requestLogger } from "./middleware/logging-middleware";
 
 // Load environment variables
-dotenv.config()
+dotenv.config();
 
 // Types
 interface ImageMetadata {
-  originalName: string
-  fileId: string
-  fileExtension: string
-  fullUrl: string
+  originalName: string;
+  fileId: string;
+  fileExtension: string;
+  fullUrl: string;
 }
 
 interface CollectionResponse {
-  collectionId: string
-  collectionName: string
-  userId?: string
+  collectionId: string;
+  collectionName: string;
+  userId?: string;
 }
 
 interface UploadResponse {
-  collectionId: string
-  images: ImageMetadata[]
+  collectionId: string;
+  images: ImageMetadata[];
 }
 
 // Ensure data directory exists
 if (!fs.existsSync(CONFIG.DATA_ROOT)) {
-  fs.mkdirSync(CONFIG.DATA_ROOT, { recursive: true })
+  fs.mkdirSync(CONFIG.DATA_ROOT, { recursive: true });
 }
 
-const app: Express = express()
-app.use(express.json({ limit: "50mb" })) // Increased limit for base64 images
-app.use(cors())
+const app: Express = express();
+app.use(express.json({ limit: "50mb" })); // Increased limit for base64 images
+app.use(cors());
+app.use(requestLogger); // Add logging middleware
 
 // Configure multer for file uploads
-const storage = multer.memoryStorage()
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-})
+});
 
 // Simple health check endpoint
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", environment: process.env.NODE_ENV })
-})
+  res.status(200).json({ status: "ok", environment: process.env.NODE_ENV });
+});
 
 // Auth routes
-app.post("/auth/register", authController.register.bind(authController))
-app.post("/auth/login", authController.login.bind(authController))
-app.get("/auth/profile", authenticateToken, authController.getProfile.bind(authController))
+app.post("/auth/register", authController.register.bind(authController));
+app.post("/auth/login", authController.login.bind(authController));
+app.get(
+  "/auth/profile",
+  authenticateToken,
+  authController.getProfile.bind(authController)
+);
 
 // API Key routes
-app.post("/api-keys", authenticateToken, apiKeyController.createApiKey.bind(apiKeyController))
-app.get("/api-keys", authenticateToken, apiKeyController.getUserApiKeys.bind(apiKeyController))
-app.patch("/api-keys/:id", authenticateToken, apiKeyController.updateApiKeyStatus.bind(apiKeyController))
-app.delete("/api-keys/:id", authenticateToken, apiKeyController.deleteApiKey.bind(apiKeyController))
+app.post(
+  "/api-keys",
+  authenticateToken,
+  apiKeyController.createApiKey.bind(apiKeyController)
+);
+app.get(
+  "/api-keys",
+  authenticateToken,
+  apiKeyController.getUserApiKeys.bind(apiKeyController)
+);
+app.patch(
+  "/api-keys/:id",
+  authenticateToken,
+  apiKeyController.updateApiKeyStatus.bind(apiKeyController)
+);
+app.delete(
+  "/api-keys/:id",
+  authenticateToken,
+  apiKeyController.deleteApiKey.bind(apiKeyController)
+);
 
 // Create a new collection - 支持JWT或API密钥认证
-app.post(
-  "/collections",
-  authenticateToken,
-  async (req: AuthRequest, res) => {
-    try {
-      const userId = req.user?.id
+app.post("/collections", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
 
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" })
-      }
-
-      const { name } = req.body
-
-      if (!name) {
-        return res.status(400).json({ error: "Collection name is required" })
-      }
-
-      const collectionId = uuidv4()
-      const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
-
-      // Create collection directory
-      fs.mkdirSync(collectionPath, { recursive: true })
-
-      // Save collection metadata
-      fs.writeFileSync(
-        path.join(collectionPath, "metadata.json"),
-        JSON.stringify({ name, userId, createdAt: new Date().toISOString() }),
-      )
-
-      const response: CollectionResponse = {
-        collectionId,
-        collectionName: name,
-        userId,
-      }
-
-      res.status(201).json(response)
-    } catch (error) {
-      console.error("Error creating collection:", error)
-      res.status(500).json({ error: "Failed to create collection" })
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
     }
-  },
-)
+
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: "Collection name is required" });
+    }
+
+    const collectionId = uuidv4();
+    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
+
+    // Create collection directory
+    fs.mkdirSync(collectionPath, { recursive: true });
+
+    // Save collection metadata
+    fs.writeFileSync(
+      path.join(collectionPath, "metadata.json"),
+      JSON.stringify({ name, userId, createdAt: new Date().toISOString() })
+    );
+
+    const response: CollectionResponse = {
+      collectionId,
+      collectionName: name,
+      userId,
+    };
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error("Error creating collection:", error);
+    res.status(500).json({ error: "Failed to create collection" });
+  }
+});
 
 // Get user's collections - 支持JWT或API密钥认证
-app.get(
-  "/collections",
-  authenticateToken,
-  async (req: AuthRequest, res) => {
-    try {
-      const userId = req.user?.id
+app.get("/collections", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
 
-      if (!userId) {
-        return res.status(401).json({ error: "Authentication required" })
-      }
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
 
-      const collections: CollectionResponse[] = []
+    const collections: CollectionResponse[] = [];
 
-      // Read all collection directories
-      const collectionDirs = fs
-        .readdirSync(CONFIG.DATA_ROOT, { withFileTypes: true })
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
+    // Read all collection directories
+    const collectionDirs = fs
+      .readdirSync(CONFIG.DATA_ROOT, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
 
-      // Filter collections by user ID
-      for (const collectionId of collectionDirs) {
-        const metadataPath = path.join(CONFIG.DATA_ROOT, collectionId, "metadata.json")
+    // Filter collections by user ID
+    for (const collectionId of collectionDirs) {
+      const metadataPath = path.join(
+        CONFIG.DATA_ROOT,
+        collectionId,
+        "metadata.json"
+      );
 
-        if (fs.existsSync(metadataPath)) {
-          const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
+      if (fs.existsSync(metadataPath)) {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
 
-          if (metadata.userId === userId) {
-            collections.push({
-              collectionId,
-              collectionName: metadata.name,
-              userId,
-            })
-          }
+        if (metadata.userId === userId) {
+          collections.push({
+            collectionId,
+            collectionName: metadata.name,
+            userId,
+          });
         }
       }
-
-      res.status(200).json({ collections })
-    } catch (error) {
-      console.error("Error getting collections:", error)
-      res.status(500).json({ error: "Failed to get collections" })
     }
-  },
-)
+
+    res.status(200).json({ collections });
+  } catch (error) {
+    console.error("Error getting collections:", error);
+    res.status(500).json({ error: "Failed to get collections" });
+  }
+});
 
 // Upload images to a collection - 支持JWT或API密钥认证
 app.post(
@@ -161,49 +179,56 @@ app.post(
   authenticateToken,
   async (req: AuthRequest, res) => {
     try {
-      const userId = req.user?.id
+      const userId = req.user?.id;
 
       if (!userId) {
-        return res.status(401).json({ error: "Authentication required" })
+        return res.status(401).json({ error: "Authentication required" });
       }
 
-      const { collectionId } = req.params
-      const files = req.files as Express.Multer.File[]
+      const { collectionId } = req.params;
+      const files = req.files as Express.Multer.File[];
 
       if (!files || files.length === 0) {
-        return res.status(400).json({ error: "No images uploaded" })
+        return res.status(400).json({ error: "No images uploaded" });
       }
 
-      const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
+      const collectionPath = path.resolve(CONFIG.DATA_ROOT, collectionId);
 
-      // Check if collection exists
+      // Create collection directory if it doesn't exist
       if (!fs.existsSync(collectionPath)) {
-        return res.status(404).json({ error: "Collection not found" })
+        fs.mkdirSync(collectionPath, { recursive: true });
+      }
+
+      // Create metadata file if it doesn't exist
+      const metadataPath = path.resolve(collectionPath, "metadata.json");
+      if (!fs.existsSync(metadataPath)) {
+        fs.writeFileSync(
+          metadataPath,
+          JSON.stringify({ userId, createdAt: new Date().toISOString() })
+        );
       }
 
       // Check if user owns the collection
-      const metadataPath = path.join(collectionPath, "metadata.json")
-      if (fs.existsSync(metadataPath)) {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
-
-        if (metadata.userId !== userId) {
-          return res.status(403).json({ error: "You do not have permission to upload to this collection" })
-        }
-      } else {
-        return res.status(404).json({ error: "Collection metadata not found" })
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+      if (metadata.userId !== userId) {
+        return res.status(403).json({
+          error: "You do not have permission to upload to this collection",
+        });
       }
 
-      const imageMetadata: ImageMetadata[] = []
+      const imageMetadata: ImageMetadata[] = [];
 
       // Process each uploaded file
       for (const file of files) {
-        const fileId = uuidv4()
-        const fileExtension = path.extname(file.originalname) || getExtensionFromMimeType(file.mimetype)
-        const fileName = `${fileId}${fileExtension}`
-        const filePath = path.join(collectionPath, fileName)
+        const fileId = uuidv4();
+        const fileExtension =
+          path.extname(file.originalname) ||
+          getExtensionFromMimeType(file.mimetype);
+        const fileName = `${fileId}${fileExtension}`;
+        const filePath = path.resolve(collectionPath, fileName);
 
         // Save the file
-        fs.writeFileSync(filePath, file.buffer)
+        fs.writeFileSync(filePath, file.buffer);
 
         // Create metadata
         const metadata: ImageMetadata = {
@@ -211,269 +236,294 @@ app.post(
           fileId,
           fileExtension,
           fullUrl: `${CONFIG.IMAGE_ROOT_URL}${collectionId}/${fileId}${fileExtension}`,
-        }
+        };
 
-        imageMetadata.push(metadata)
+        imageMetadata.push(metadata);
       }
 
       // Save metadata for the upload
-      const uploadMetadataPath = path.join(collectionPath, "uploads.json")
-      let uploads = []
+      const uploadMetadataPath = path.resolve(collectionPath, "uploads.json");
+      let uploads = [];
 
       if (fs.existsSync(uploadMetadataPath)) {
-        const existingData = fs.readFileSync(uploadMetadataPath, "utf8")
-        uploads = JSON.parse(existingData)
+        const existingData = fs.readFileSync(uploadMetadataPath, "utf8");
+        uploads = JSON.parse(existingData);
       }
 
       uploads.push({
         uploadedAt: new Date().toISOString(),
         userId,
         images: imageMetadata,
-      })
+      });
 
-      fs.writeFileSync(uploadMetadataPath, JSON.stringify(uploads, null, 2))
+      fs.writeFileSync(uploadMetadataPath, JSON.stringify(uploads, null, 2));
 
       const response: UploadResponse = {
         collectionId,
         images: imageMetadata,
-      }
+      };
 
-      res.status(200).json(response)
+      res.status(200).json(response);
     } catch (error) {
-      console.error("Error uploading images:", error)
-      res.status(500).json({ error: "Failed to upload images" })
+      console.error("Error uploading images:", error);
+      res.status(500).json({ error: "Failed to upload images" });
     }
-  },
-)
+  }
+);
 
 // Get images in a collection
-app.get("/collections/:collectionId/images", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user?.id
+app.get(
+  "/collections/:collectionId/images",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" })
-    }
-
-    const { collectionId } = req.params
-
-    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
-
-    // Check if collection exists
-    if (!fs.existsSync(collectionPath)) {
-      return res.status(404).json({ error: "Collection not found" })
-    }
-
-    // Check if user owns the collection
-    const metadataPath = path.join(collectionPath, "metadata.json")
-    if (fs.existsSync(metadataPath)) {
-      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
-
-      if (metadata.userId !== userId) {
-        return res.status(403).json({ error: "You do not have permission to view this collection" })
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
       }
-    } else {
-      return res.status(404).json({ error: "Collection metadata not found" })
+
+      const { collectionId } = req.params;
+
+      const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
+
+      // Check if collection exists
+      if (!fs.existsSync(collectionPath)) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+
+      // Check if user owns the collection
+      const metadataPath = path.join(collectionPath, "metadata.json");
+      if (fs.existsSync(metadataPath)) {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+
+        if (metadata.userId !== userId) {
+          return res.status(403).json({
+            error: "You do not have permission to view this collection",
+          });
+        }
+      } else {
+        return res.status(404).json({ error: "Collection metadata not found" });
+      }
+
+      // Get uploads metadata
+      const uploadMetadataPath = path.join(collectionPath, "uploads.json");
+      if (!fs.existsSync(uploadMetadataPath)) {
+        return res.status(200).json({ images: [] });
+      }
+
+      const uploads = JSON.parse(fs.readFileSync(uploadMetadataPath, "utf8"));
+
+      // Flatten all images from all uploads
+      const images = uploads.reduce((acc: ImageMetadata[], upload: any) => {
+        return acc.concat(upload.images);
+      }, []);
+
+      res.status(200).json({ collectionId, images });
+    } catch (error) {
+      console.error("Error getting images:", error);
+      res.status(500).json({ error: "Failed to get images" });
     }
-
-    // Get uploads metadata
-    const uploadMetadataPath = path.join(collectionPath, "uploads.json")
-    if (!fs.existsSync(uploadMetadataPath)) {
-      return res.status(200).json({ images: [] })
-    }
-
-    const uploads = JSON.parse(fs.readFileSync(uploadMetadataPath, "utf8"))
-
-    // Flatten all images from all uploads
-    const images = uploads.reduce((acc: ImageMetadata[], upload: any) => {
-      return acc.concat(upload.images)
-    }, [])
-
-    res.status(200).json({ collectionId, images })
-  } catch (error) {
-    console.error("Error getting images:", error)
-    res.status(500).json({ error: "Failed to get images" })
   }
-})
+);
 
 // Upload base64 images to a collection
-app.post("/collections/:collectionId/base64", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user?.id
+app.post(
+  "/collections/:collectionId/base64",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" })
-    }
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
 
-    const { collectionId } = req.params
-    const { images } = req.body
+      const { collectionId } = req.params;
+      const { images } = req.body;
 
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      return res.status(400).json({ error: "No images provided" })
-    }
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        return res.status(400).json({ error: "No images provided" });
+      }
 
-    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
+      const collectionPath = path.resolve(CONFIG.DATA_ROOT, collectionId);
 
-    // Check if collection exists
-    if (!fs.existsSync(collectionPath)) {
-      return res.status(404).json({ error: "Collection not found" })
-    }
+      // Create collection directory if it doesn't exist
+      if (!fs.existsSync(collectionPath)) {
+        fs.mkdirSync(collectionPath, { recursive: true });
+      }
 
-    // Check if user owns the collection
-    const metadataPath = path.join(collectionPath, "metadata.json")
-    if (fs.existsSync(metadataPath)) {
-      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
+      // Create metadata file if it doesn't exist
+      const metadataPath = path.resolve(collectionPath, "metadata.json");
+      if (!fs.existsSync(metadataPath)) {
+        fs.writeFileSync(
+          metadataPath,
+          JSON.stringify({ userId, createdAt: new Date().toISOString() })
+        );
+      }
 
+      // Check if user owns the collection
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
       if (metadata.userId !== userId) {
-        return res.status(403).json({ error: "You do not have permission to upload to this collection" })
-      }
-    } else {
-      return res.status(404).json({ error: "Collection metadata not found" })
-    }
-
-    const imageMetadata: ImageMetadata[] = []
-
-    // Process each base64 image
-    for (const image of images) {
-      if (!image.data || !image.filename) {
-        continue
+        return res.status(403).json({
+          error: "You do not have permission to upload to this collection",
+        });
       }
 
-      // Extract the base64 data and content type
-      const matches = image.data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/)
+      const imageMetadata: ImageMetadata[] = [];
 
-      if (!matches || matches.length !== 3) {
-        continue
+      // Process each base64 image
+      for (const image of images) {
+        if (!image.data || !image.filename) {
+          continue;
+        }
+
+        // Extract the base64 data and content type
+        const matches = image.data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+
+        if (!matches || matches.length !== 3) {
+          continue;
+        }
+
+        const contentType = matches[1];
+        const base64Data = matches[2];
+        const buffer = Buffer.from(base64Data, "base64");
+
+        const fileId = uuidv4();
+        const fileExtension =
+          path.extname(image.filename) || getExtensionFromMimeType(contentType);
+        const fileName = `${fileId}${fileExtension}`;
+        const filePath = path.resolve(collectionPath, fileName);
+
+        // Save the file
+        fs.writeFileSync(filePath, buffer);
+
+        // Create metadata
+        const metadata: ImageMetadata = {
+          originalName: image.filename,
+          fileId,
+          fileExtension,
+          fullUrl: `${CONFIG.IMAGE_ROOT_URL}${collectionId}/${fileId}${fileExtension}`,
+        };
+
+        imageMetadata.push(metadata);
       }
 
-      const contentType = matches[1]
-      const base64Data = matches[2]
-      const buffer = Buffer.from(base64Data, "base64")
+      // Save metadata for the upload
+      const uploadMetadataPath = path.resolve(collectionPath, "uploads.json");
+      let uploads = [];
 
-      const fileId = uuidv4()
-      const fileExtension = path.extname(image.filename) || getExtensionFromMimeType(contentType)
-      const fileName = `${fileId}${fileExtension}`
-      const filePath = path.join(collectionPath, fileName)
-
-      // Save the file
-      fs.writeFileSync(filePath, buffer)
-
-      // Create metadata
-      const metadata: ImageMetadata = {
-        originalName: image.filename,
-        fileId,
-        fileExtension,
-        fullUrl: `${CONFIG.IMAGE_ROOT_URL}${collectionId}/${fileId}${fileExtension}`,
+      if (fs.existsSync(uploadMetadataPath)) {
+        const existingData = fs.readFileSync(uploadMetadataPath, "utf8");
+        uploads = JSON.parse(existingData);
       }
 
-      imageMetadata.push(metadata)
+      uploads.push({
+        uploadedAt: new Date().toISOString(),
+        userId,
+        images: imageMetadata,
+      });
+
+      fs.writeFileSync(uploadMetadataPath, JSON.stringify(uploads, null, 2));
+
+      const response: UploadResponse = {
+        collectionId,
+        images: imageMetadata,
+      };
+
+      res.status(200).json(response);
+    } catch (error) {
+      console.error("Error uploading base64 images:", error);
+      res.status(500).json({ error: "Failed to upload images" });
     }
-
-    // Save metadata for the upload
-    const uploadMetadataPath = path.join(collectionPath, "uploads.json")
-    let uploads = []
-
-    if (fs.existsSync(uploadMetadataPath)) {
-      const existingData = fs.readFileSync(uploadMetadataPath, "utf8")
-      uploads = JSON.parse(existingData)
-    }
-
-    uploads.push({
-      uploadedAt: new Date().toISOString(),
-      userId,
-      images: imageMetadata,
-    })
-
-    fs.writeFileSync(uploadMetadataPath, JSON.stringify(uploads, null, 2))
-
-    const response: UploadResponse = {
-      collectionId,
-      images: imageMetadata,
-    }
-
-    res.status(200).json(response)
-  } catch (error) {
-    console.error("Error uploading base64 images:", error)
-    res.status(500).json({ error: "Failed to upload images" })
   }
-})
+);
 
 // Delete a collection
-app.delete("/collections/:collectionId", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user?.id
+app.delete(
+  "/collections/:collectionId",
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" })
-    }
-
-    const { collectionId } = req.params
-
-    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
-
-    // Check if collection exists
-    if (!fs.existsSync(collectionPath)) {
-      return res.status(404).json({ error: "Collection not found" })
-    }
-
-    // Check if user owns the collection
-    const metadataPath = path.join(collectionPath, "metadata.json")
-    if (fs.existsSync(metadataPath)) {
-      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
-
-      if (metadata.userId !== userId) {
-        return res.status(403).json({ error: "You do not have permission to delete this collection" })
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
       }
-    } else {
-      return res.status(404).json({ error: "Collection metadata not found" })
+
+      const { collectionId } = req.params;
+
+      const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId);
+
+      // Check if collection exists
+      if (!fs.existsSync(collectionPath)) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+
+      // Check if user owns the collection
+      const metadataPath = path.join(collectionPath, "metadata.json");
+      if (fs.existsSync(metadataPath)) {
+        const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+
+        if (metadata.userId !== userId) {
+          return res.status(403).json({
+            error: "You do not have permission to delete this collection",
+          });
+        }
+      } else {
+        return res.status(404).json({ error: "Collection metadata not found" });
+      }
+
+      // Delete the collection directory and all its contents
+      fs.rmSync(collectionPath, { recursive: true, force: true });
+
+      res.status(200).json({ message: "Collection deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting collection:", error);
+      res.status(500).json({ error: "Failed to delete collection" });
     }
-
-    // Delete the collection directory and all its contents
-    fs.rmSync(collectionPath, { recursive: true, force: true })
-
-    res.status(200).json({ message: "Collection deleted successfully" })
-  } catch (error) {
-    console.error("Error deleting collection:", error)
-    res.status(500).json({ error: "Failed to delete collection" })
   }
-})
+);
 
 // Serve images - public access
 app.get("/images/:collectionId/:fileId", (req, res) => {
   try {
-    const { collectionId, fileId } = req.params
+    const { collectionId, fileId } = req.params;
 
     // Find the file with the matching fileId prefix
-    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
+    const collectionPath = path.resolve(CONFIG.DATA_ROOT, collectionId);
 
     if (!fs.existsSync(collectionPath)) {
-      return res.status(404).json({ error: "Collection not found" })
+      return res.status(404).json({ error: "Collection not found" });
     }
 
-    const files = fs.readdirSync(collectionPath)
+    const files = fs.readdirSync(collectionPath);
     const imageFile = files.find(
-      (file) => file.startsWith(fileId) && file !== "metadata.json" && file !== "uploads.json",
-    )
+      (file) =>
+        file.startsWith(fileId) &&
+        file !== "metadata.json" &&
+        file !== "uploads.json"
+    );
 
     if (!imageFile) {
-      return res.status(404).json({ error: "Image not found" })
+      return res.status(404).json({ error: "Image not found" });
     }
 
-    const imagePath = path.join(collectionPath, imageFile)
+    const imagePath = path.resolve(collectionPath, imageFile);
 
     // Set appropriate content type based on file extension
-    const ext = path.extname(imageFile).toLowerCase()
-    const contentType = getContentTypeFromExtension(ext)
+    const ext = path.extname(imageFile).toLowerCase();
+    const contentType = getContentTypeFromExtension(ext);
     if (contentType) {
-      res.setHeader("Content-Type", contentType)
+      res.setHeader("Content-Type", contentType);
     }
 
-    res.sendFile(imagePath)
+    res.sendFile(imagePath);
   } catch (error) {
-    console.error("Error serving image:", error)
-    res.status(500).json({ error: "Failed to serve image" })
+    console.error("Error serving image:", error);
+    res.status(500).json({ error: "Failed to serve image" });
   }
-})
+});
 
 // Helper function to get file extension from MIME type
 function getExtensionFromMimeType(mimeType: string): string {
