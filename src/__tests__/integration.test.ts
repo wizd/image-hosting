@@ -4,13 +4,21 @@ import fs from "fs";
 import { CONFIG } from "../config";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
-
+import chalk from "chalk";
 // 加载环境变量
-dotenv.config();
+dotenv.config({ path: ".env.test" });
 
 // 测试数据
 const ROOT_API_KEY = process.env.ROOT_API_KEY || "test-root-key"; // 需要在环境变量中设置一个根API Key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // OpenAI API密钥用于测试图片描述功能
+const API_URL = process.env.API_URL || `http://localhost:${CONFIG.PORT}`; // 使用环境变量中的API_URL，如果未设置则使用本地地址
+
+// 打印测试配置信息
+console.log(chalk.blue("=== Test Configuration ==="));
+console.log(chalk.blue(`API_URL: ${API_URL}`));
+console.log(chalk.blue(`DATA_ROOT: ${CONFIG.DATA_ROOT}`));
+console.log(chalk.blue(`ROOT_API_KEY: ${ROOT_API_KEY.substring(0, 4)}...`)); // 只显示前4位
+console.log(chalk.blue("=====================\n"));
 
 const TEST_API_KEY = {
   name: "Test API Key",
@@ -36,21 +44,38 @@ const cleanupTestData = () => {
   }
 };
 
-// 使用实际运行的服务器URL
-const serverUrl = `http://localhost:${CONFIG.PORT}`;
-
 describe("Image Hosting API Integration Tests", () => {
   // 在所有测试开始前创建API Key
   beforeAll(async () => {
-    // 使用ROOT_API_KEY创建一个测试用的API Key
-    const response = await request(serverUrl)
-      .post("/api-keys")
-      .set("X-API-Key", ROOT_API_KEY)
-      .send(TEST_API_KEY);
+    try {
+      // 使用ROOT_API_KEY创建一个测试用的API Key
+      const response = await request(API_URL)
+        .post("/api-keys")
+        .set("X-API-Key", ROOT_API_KEY)
+        .send(TEST_API_KEY);
 
-    expect(response.status).toBe(201);
-    expect(response.body).toHaveProperty("key");
-    apiKey = response.body.key;
+      if (response.status !== 201) {
+        console.error(chalk.red("Failed to create API key:"));
+        console.error(chalk.red(`Status: ${response.status}`));
+        console.error(
+          chalk.red(`Body: ${JSON.stringify(response.body, null, 2)}`)
+        );
+        throw new Error(`Failed to create API key: ${response.status}`);
+      }
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty("key");
+      apiKey = response.body.key;
+      console.log(
+        chalk.green(
+          `Successfully created test API key: ${apiKey.substring(0, 4)}...`
+        )
+      );
+    } catch (error) {
+      console.error(chalk.red("Error in beforeAll:"));
+      console.error(chalk.red(error));
+      throw error;
+    }
   });
 
   // 在所有测试结束后清理数据
@@ -61,7 +86,7 @@ describe("Image Hosting API Integration Tests", () => {
   // API密钥相关测试
   describe("API Keys", () => {
     it("should create additional API key", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .post("/api-keys")
         .set("X-API-Key", ROOT_API_KEY)
         .send({
@@ -74,7 +99,7 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should get API keys", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .get("/api-keys")
         .set("X-API-Key", ROOT_API_KEY);
 
@@ -87,7 +112,7 @@ describe("Image Hosting API Integration Tests", () => {
   // 集合相关测试
   describe("Collections", () => {
     it("should create collection", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .post("/v1/collections")
         .set("X-API-Key", apiKey)
         .send(TEST_COLLECTION);
@@ -98,7 +123,7 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should get collections", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .get("/v1/collections")
         .set("X-API-Key", apiKey);
 
@@ -112,7 +137,7 @@ describe("Image Hosting API Integration Tests", () => {
   // 图片上传相关测试
   describe("Image Upload and Processing", () => {
     it("should upload image using multipart form", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .post(`/v1/collections/${collectionId}/assets`)
         .set("X-API-Key", apiKey)
         .attach("images", path.join(__dirname, "test-image.jpg"));
@@ -128,7 +153,7 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should get images in collection", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .get(`/v1/collections/${collectionId}/assets`)
         .set("X-API-Key", apiKey);
 
@@ -139,7 +164,7 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should serve image", async () => {
-      const response = await request(serverUrl).get(
+      const response = await request(API_URL).get(
         `/v1/assets/${collectionId}/${uploadedImageId}${uploadedImageExt}`
       );
 
@@ -152,12 +177,14 @@ describe("Image Hosting API Integration Tests", () => {
       // 如果没有配置OpenAI API密钥，跳过此测试
       if (!OPENAI_API_KEY) {
         console.log(
-          "Skipping image description test - No OpenAI API key available"
+          chalk.yellow(
+            "Skipping image description test - No OpenAI API key available"
+          )
         );
         return;
       }
 
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .get(
           `/v1/collections/${collectionId}/assets/${uploadedImageId}/description`
         )
@@ -168,7 +195,9 @@ describe("Image Hosting API Integration Tests", () => {
         response.body.error === "Failed to generate image description"
       ) {
         console.log(
-          "Image description generation failed - This might be due to OpenAI API issues"
+          chalk.yellow(
+            "Image description generation failed - This might be due to OpenAI API issues"
+          )
         );
         return;
       }
@@ -180,7 +209,7 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should handle invalid image ID for description generation", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .get(`/v1/collections/${collectionId}/assets/invalid-id/description`)
         .set("X-API-Key", apiKey);
 
@@ -192,7 +221,7 @@ describe("Image Hosting API Integration Tests", () => {
   // 清理测试
   describe("Cleanup", () => {
     it("should delete collection", async () => {
-      const response = await request(serverUrl)
+      const response = await request(API_URL)
         .delete(`/v1/collections/${collectionId}`)
         .set("X-API-Key", apiKey);
 
