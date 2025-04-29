@@ -4,12 +4,13 @@ import multer from "multer"
 import path from "path"
 import fs from "fs"
 import dotenv from "dotenv"
-import cors from "cors"
-import { authenticateToken, type AuthRequest } from "./middleware/auth-middleware"
-import { authController } from "./auth/auth-controller"
-import { apiKeyController } from "./api-key/api-key-controller"
-import { authenticateApiKey, type ApiKeyRequest } from "./middleware/api-key-middleware"
-import { CONFIG } from "./config"
+import cors from "cors";
+import {
+  authenticateApiKey,
+  type ApiKeyRequest,
+} from "./middleware/api-key-middleware";
+import { apiKeyController } from "./api-key/api-key-controller";
+import { CONFIG } from "./config";
 import { requestLogger } from "./middleware/logging-middleware";
 
 // Load environment variables
@@ -39,7 +40,7 @@ if (!fs.existsSync(CONFIG.DATA_ROOT)) {
 }
 
 const app: Express = express();
-app.use(express.json({ limit: "50mb" })); // Increased limit for base64 images
+app.use(express.json()); // Default limit
 app.use(cors());
 app.use(requestLogger); // Add logging middleware
 
@@ -54,23 +55,6 @@ const upload = multer({
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", environment: process.env.NODE_ENV });
 });
-
-// Auth routes
-app.post(
-  "/auth/register",
-  authenticateApiKey,
-  authController.register.bind(authController)
-);
-app.post(
-  "/auth/login",
-  authenticateApiKey,
-  authController.login.bind(authController)
-);
-app.get(
-  "/auth/profile",
-  authenticateApiKey,
-  authController.getProfile.bind(authController)
-);
 
 // API Key routes
 app.post(
