@@ -4,7 +4,8 @@ import type { ApiClient } from "./api-client"
 import chalk from "chalk"
 
 // Regular expressions for finding images in markdown
-const LOCAL_IMAGE_REGEX = /!\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)/g;
+const LOCAL_IMAGE_REGEX =
+  /!\[([^\]]*)\]\((?!https?:\/\/)(?!data:image\/)([^)]+)\)/g;
 const REMOTE_IMAGE_REGEX = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 const BASE64_IMAGE_REGEX =
   /!\[([^\]]*)\]\((data:image\/[a-zA-Z+]+;base64,[^)]+)\)/g;
