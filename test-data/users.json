@@ -1,0 +1,58 @@
+[
+  {
+    "id": "e5f31d96-932d-40cc-bef0-3a6c887e725b",
+    "username": "test-user-8c3ca3c5-308f-49bb-b438-98dac631a251",
+    "email": "test-d022f274-17f3-4c9b-a8ca-71eab5d0324a@example.com",
+    "password": "$2a$10$QXyMVJeKnUsLJV1JKV1g1OCTNthc6V6mXitN2WZ21wwdO.djaWHkK",
+    "createdAt": "2025-04-29T02:09:19.456Z"
+  },
+  {
+    "id": "662ee456-7bb4-4744-b6a2-9e51c2b60902",
+    "username": "test-user-acb5568e-d7d8-4a36-8c61-dad8d37e3c28",
+    "email": "test-d56b1d29-dab2-44b1-a507-6795eefca610@example.com",
+    "password": "$2a$10$O54t9xwzuFxdnXnEn.fFF.Tx3tm8srjqhENd9Swtq9iwh6jozjqbe",
+    "createdAt": "2025-04-29T02:10:51.866Z"
+  },
+  {
+    "id": "e09310db-93ba-4325-a07a-7c05befecc58",
+    "username": "test-user-483fee4c-856a-495b-8db1-8e70cec5f2e5",
+    "email": "test-75d1e4fe-ec3d-480e-939e-2a1c64b2c447@example.com",
+    "password": "$2a$10$FfYufWrsKXrTv.H0nlCw5evkLVS0i6tMFIGN7vjbCH8phMXiqAuxW",
+    "createdAt": "2025-04-29T02:15:09.177Z"
+  },
+  {
+    "id": "3ba662dc-3a36-405f-a721-614961a250de",
+    "username": "test-user-43164547-f88c-4b0b-abcb-656df7d63ecb",
+    "email": "test-78d0d08a-10ec-47db-a0ae-0d74061b4724@example.com",
+    "password": "$2a$10$5kQkqWN8eU58sUL5aCEXkuHg84bjuiDk2xHkwwrCmxtGRn1VeSgzG",
+    "createdAt": "2025-04-29T02:15:27.483Z"
+  },
+  {
+    "id": "6ed24477-5f39-4abd-a22a-9a2ea95e9e6f",
+    "username": "test-user-bc205c0c-918c-4aa7-9d35-11f6ae397a7b",
+    "email": "test-2d6e9955-c4ff-47e5-ba6c-08c930e880e0@example.com",
+    "password": "$2a$10$c.IlXJYOf3No0AO0Syaz3ucP8GbOV51x6KhDzbOq/m2ivLbIMDZ8y",
+    "createdAt": "2025-04-29T02:15:53.784Z"
+  },
+  {
+    "id": "2772297a-caa6-4a53-b2a5-940940613530",
+    "username": "test-user-b51b3c26-7544-417e-8697-46a72e51f60a",
+    "email": "test-61bf168f-6f9d-4451-9350-adab21fc46fd@example.com",
+    "password": "$2a$10$stk1ijSFrJRuQnOmu4/6y.hK1bOikc6p6CUi8.HRrVg5Xsy01i3I2",
+    "createdAt": "2025-04-29T02:16:22.657Z"
+  },
+  {
+    "id": "6e2cbd32-fff3-4c62-a5ab-e0dae8028b4a",
+    "username": "test-user-f70c07e3-f99b-4b8e-8b4a-ebce4c4452dd",
+    "email": "test-a93fdc1e-0dbe-44d5-a853-1319b772cbd3@example.com",
+    "password": "$2a$10$z.RxDaZtzfdo2oJWpKL.QuwOs8msr.OM5BBIYNfNvv.UwPlEn8EQK",
+    "createdAt": "2025-04-29T02:16:38.110Z"
+  },
+  {
+    "id": "1e0f8aa2-b371-457b-ad88-2776cd3a49b3",
+    "username": "test-user-e563192b-bed7-4e87-9afe-7c5bc7f6a659",
+    "email": "test-e1cf9417-1b20-49d6-bcdf-816a7b3dbd06@example.com",
+    "password": "$2a$10$ZuFHCv/aWGEfvCdz70N5YOykyeLQuP6V18IvHqdyXvQiGFAqkeltq",
+    "createdAt": "2025-04-29T02:32:08.196Z"
+  }
+]

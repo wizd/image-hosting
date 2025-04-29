@@ -68,20 +68,10 @@ app.delete("/api-keys/:id", authenticateToken, apiKeyController.deleteApiKey.bin
 // Create a new collection - 支持JWT或API密钥认证
 app.post(
   "/collections",
-  async (req: AuthRequest & ApiKeyRequest, res) => {
+  authenticateToken,
+  async (req: AuthRequest, res) => {
     try {
-      // 检查是否有JWT认证
-      let userId = req.user?.id
-
-      // 如果没有JWT认证，检查API密钥认证
-      if (!userId && req.apiKey) {
-        userId = req.apiKey.userId
-
-        // 检查API密钥是否有写权限
-        if (!req.apiKey.permissions.includes("write") && !req.apiKey.permissions.includes("admin")) {
-          return res.status(403).json({ error: "API key does not have write permission" })
-        }
-      }
+      const userId = req.user?.id
 
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" })
@@ -117,26 +107,15 @@ app.post(
       res.status(500).json({ error: "Failed to create collection" })
     }
   },
-  authenticateApiKey,
 )
 
 // Get user's collections - 支持JWT或API密钥认证
 app.get(
   "/collections",
-  async (req: AuthRequest & ApiKeyRequest, res) => {
+  authenticateToken,
+  async (req: AuthRequest, res) => {
     try {
-      // 检查是否有JWT认证
-      let userId = req.user?.id
-
-      // 如果没有JWT认证，检查API密钥认证
-      if (!userId && req.apiKey) {
-        userId = req.apiKey.userId
-
-        // 检查API密钥是否有读权限
-        if (!req.apiKey.permissions.includes("read") && !req.apiKey.permissions.includes("admin")) {
-          return res.status(403).json({ error: "API key does not have read permission" })
-        }
-      }
+      const userId = req.user?.id
 
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" })
@@ -173,34 +152,22 @@ app.get(
       res.status(500).json({ error: "Failed to get collections" })
     }
   },
-  authenticateApiKey,
 )
 
 // Upload images to a collection - 支持JWT或API密钥认证
 app.post(
   "/collections/:collectionId/images",
   upload.array("images"),
-  async (req: AuthRequest & ApiKeyRequest, res) => {
+  authenticateToken,
+  async (req: AuthRequest, res) => {
     try {
-      const { collectionId } = req.params
-
-      // 检查是否有JWT认证
-      let userId = req.user?.id
-
-      // 如果没有JWT认证，检查API密钥认证
-      if (!userId && req.apiKey) {
-        userId = req.apiKey.userId
-
-        // 检查API密钥是否有写权限
-        if (!req.apiKey.permissions.includes("write") && !req.apiKey.permissions.includes("admin")) {
-          return res.status(403).json({ error: "API key does not have write permission" })
-        }
-      }
+      const userId = req.user?.id
 
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" })
       }
 
+      const { collectionId } = req.params
       const files = req.files as Express.Multer.File[]
 
       if (!files || files.length === 0) {
@@ -277,21 +244,18 @@ app.post(
       res.status(500).json({ error: "Failed to upload images" })
     }
   },
-  authenticateApiKey,
 )
 
-// 为其他API端点添加类似的认证机制...
-// 这里省略了其他端点的代码，但应该以类似的方式添加API密钥认证
-
 // Get images in a collection
-app.get("/collections/:collectionId/images", authenticateToken, (req: AuthRequest, res) => {
+app.get("/collections/:collectionId/images", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { collectionId } = req.params
     const userId = req.user?.id
 
     if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" })
+      return res.status(401).json({ error: "Authentication required" })
     }
+
+    const { collectionId } = req.params
 
     const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
 
@@ -333,15 +297,16 @@ app.get("/collections/:collectionId/images", authenticateToken, (req: AuthReques
 })
 
 // Upload base64 images to a collection
-app.post("/collections/:collectionId/base64", authenticateToken, (req: AuthRequest, res) => {
+app.post("/collections/:collectionId/base64", authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { collectionId } = req.params
     const userId = req.user?.id
-    const { images } = req.body
 
     if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" })
+      return res.status(401).json({ error: "Authentication required" })
     }
+
+    const { collectionId } = req.params
+    const { images } = req.body
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ error: "No images provided" })
@@ -433,6 +398,46 @@ app.post("/collections/:collectionId/base64", authenticateToken, (req: AuthReque
   }
 })
 
+// Delete a collection
+app.delete("/collections/:collectionId", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id
+
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" })
+    }
+
+    const { collectionId } = req.params
+
+    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
+
+    // Check if collection exists
+    if (!fs.existsSync(collectionPath)) {
+      return res.status(404).json({ error: "Collection not found" })
+    }
+
+    // Check if user owns the collection
+    const metadataPath = path.join(collectionPath, "metadata.json")
+    if (fs.existsSync(metadataPath)) {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
+
+      if (metadata.userId !== userId) {
+        return res.status(403).json({ error: "You do not have permission to delete this collection" })
+      }
+    } else {
+      return res.status(404).json({ error: "Collection metadata not found" })
+    }
+
+    // Delete the collection directory and all its contents
+    fs.rmSync(collectionPath, { recursive: true, force: true })
+
+    res.status(200).json({ message: "Collection deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting collection:", error)
+    res.status(500).json({ error: "Failed to delete collection" })
+  }
+})
+
 // Serve images - public access
 app.get("/images/:collectionId/:fileId", (req, res) => {
   try {
@@ -467,45 +472,6 @@ app.get("/images/:collectionId/:fileId", (req, res) => {
   } catch (error) {
     console.error("Error serving image:", error)
     res.status(500).json({ error: "Failed to serve image" })
-  }
-})
-
-// Delete a collection
-app.delete("/collections/:collectionId", authenticateToken, (req: AuthRequest, res) => {
-  try {
-    const { collectionId } = req.params
-    const userId = req.user?.id
-
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" })
-    }
-
-    const collectionPath = path.join(CONFIG.DATA_ROOT, collectionId)
-
-    // Check if collection exists
-    if (!fs.existsSync(collectionPath)) {
-      return res.status(404).json({ error: "Collection not found" })
-    }
-
-    // Check if user owns the collection
-    const metadataPath = path.join(collectionPath, "metadata.json")
-    if (fs.existsSync(metadataPath)) {
-      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"))
-
-      if (metadata.userId !== userId) {
-        return res.status(403).json({ error: "You do not have permission to delete this collection" })
-      }
-    } else {
-      return res.status(404).json({ error: "Collection metadata not found" })
-    }
-
-    // Delete the collection directory and all its contents
-    fs.rmSync(collectionPath, { recursive: true, force: true })
-
-    res.status(200).json({ message: "Collection deleted successfully" })
-  } catch (error) {
-    console.error("Error deleting collection:", error)
-    res.status(500).json({ error: "Failed to delete collection" })
   }
 })
 

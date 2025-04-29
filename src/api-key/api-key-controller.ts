@@ -22,7 +22,7 @@ export class ApiKeyController {
 
       const apiKey = await apiKeyService.createApiKey(userId, name, expiresAt, permissions)
 
-      res.status(201).json({ apiKey })
+      res.status(201).json({ key: apiKey.key })
     } catch (error) {
       console.error("Create API key error:", error)
       res.status(500).json({ error: "Failed to create API key" })
@@ -41,7 +41,7 @@ export class ApiKeyController {
       const apiKeys = await apiKeyService.findByUserId(userId)
       const apiKeysDTO = apiKeys.map((apiKey) => apiKeyService.toApiKeyDTO(apiKey))
 
-      res.status(200).json({ apiKeys: apiKeysDTO })
+      res.status(200).json(apiKeysDTO)
     } catch (error) {
       console.error("Get API keys error:", error)
       res.status(500).json({ error: "Failed to get API keys" })
