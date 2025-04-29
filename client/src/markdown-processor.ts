@@ -10,6 +10,25 @@ const REMOTE_IMAGE_REGEX = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 const BASE64_IMAGE_REGEX =
   /!\[([^\]]*)\]\((data:image\/[a-zA-Z+]+;base64,[^)]+)\)/g;
 
+// Helper function to get surrounding paragraphs
+function getSurroundingParagraphs(markdown: string, matchIndex: number): { beforeText: string; afterText: string } {
+  // 获取匹配位置之前的文本
+  const beforeText = markdown.slice(0, matchIndex);
+  // 获取匹配位置之后的文本
+  const afterText = markdown.slice(matchIndex + 1);
+
+  // 找到最近的前一段落（向前找到两个换行符之间的内容）
+  const beforeParagraph = beforeText.split('\n\n').pop()?.trim() || '';
+
+  // 找到最近的后一段落（向后找到两个换行符之间的内容）
+  const afterParagraph = afterText.split('\n\n')[0]?.trim() || '';
+
+  return {
+    beforeText: beforeParagraph,
+    afterText: afterParagraph
+  };
+}
+
 export async function processMarkdown(
   markdown: string,
   apiClient: ApiClient,
@@ -118,14 +137,7 @@ async function processLocalImages(
         continue;
       }
 
-      // Generate description if requested
-      let description = altText;
-      if (imageDescriber && (!altText || altText.trim() === "")) {
-        console.log(chalk.blue(`Generating description for local image...`));
-        description = await imageDescriber.describeImage(fullPath);
-        console.log(chalk.green(`Generated description: "${description}"`));
-      }
-
+      // 上传图片
       console.log(
         chalk.blue(
           `Uploading local image to collection "${collectionName}" (ID: ${collectionId})`
@@ -135,6 +147,25 @@ async function processLocalImages(
         fullPath,
         collectionId
       );
+
+      // Generate description if no alt text or generic alt text
+      let description = altText;
+      if (!altText || altText.trim() === "" || /^(image|img|picture|图片|图像)$/i.test(altText.trim())) {
+        console.log(chalk.blue(`Generating description for local image...`));
+        
+        // 获取图片前后的段落
+        const { beforeText, afterText } = getSurroundingParagraphs(markdown, match.index!);
+        console.log(chalk.gray(`Context - Before: "${beforeText}"`));
+        console.log(chalk.gray(`Context - After: "${afterText}"`));
+
+        // 使用上下文生成描述
+        description = await apiClient.generateImageDescription(
+          collectionId,
+          uploadResult.fileId,
+          { beforeText, afterText }
+        );
+        console.log(chalk.green(`Generated description: "${description}"`));
+      }
 
       // Replace the local image reference with the hosted URL
       result = result.replace(
@@ -172,14 +203,7 @@ async function processRemoteImages(
     console.log(chalk.gray(`Alt text: ${altText || "(empty)"}`));
 
     try {
-      // Generate description if requested
-      let description = altText;
-      if (imageDescriber && (!altText || altText.trim() === "")) {
-        console.log(chalk.blue(`Generating description for remote image...`));
-        description = await imageDescriber.describeRemoteImage(remoteUrl);
-        console.log(chalk.green(`Generated description: "${description}"`));
-      }
-
+      // 上传图片
       console.log(
         chalk.blue(
           `Uploading remote image to collection "${collectionName}" (ID: ${collectionId})`
@@ -189,6 +213,25 @@ async function processRemoteImages(
         remoteUrl,
         collectionId
       );
+
+      // Generate description if no alt text or generic alt text
+      let description = altText;
+      if (!altText || altText.trim() === "" || /^(image|img|picture|图片|图像)$/i.test(altText.trim())) {
+        console.log(chalk.blue(`Generating description for remote image...`));
+        
+        // 获取图片前后的段落
+        const { beforeText, afterText } = getSurroundingParagraphs(markdown, match.index!);
+        console.log(chalk.gray(`Context - Before: "${beforeText}"`));
+        console.log(chalk.gray(`Context - After: "${afterText}"`));
+
+        // 使用上下文生成描述
+        description = await apiClient.generateImageDescription(
+          collectionId,
+          uploadResult.fileId,
+          { beforeText, afterText }
+        );
+        console.log(chalk.green(`Generated description: "${description}"`));
+      }
 
       // Replace the remote image reference with the hosted URL
       result = result.replace(
@@ -234,14 +277,6 @@ async function processBase64Images(
         continue;
       }
 
-      // Generate description if requested
-      let description = altText;
-      if (imageDescriber && (!altText || altText.trim() === "")) {
-        console.log(chalk.blue(`Generating description for base64 image...`));
-        description = await imageDescriber.describeBase64Image(base64Data);
-        console.log(chalk.green(`Generated description: "${description}"`));
-      }
-
       const filename = `base64-image-${Date.now()}.png`;
       console.log(
         chalk.blue(
@@ -253,6 +288,25 @@ async function processBase64Images(
         filename,
         collectionId
       );
+
+      // Generate description if no alt text or generic alt text
+      let description = altText;
+      if (!altText || altText.trim() === "" || /^(image|img|picture|图片|图像)$/i.test(altText.trim())) {
+        console.log(chalk.blue(`Generating description for base64 image...`));
+        
+        // 获取图片前后的段落
+        const { beforeText, afterText } = getSurroundingParagraphs(markdown, match.index!);
+        console.log(chalk.gray(`Context - Before: "${beforeText}"`));
+        console.log(chalk.gray(`Context - After: "${afterText}"`));
+
+        // 使用上下文生成描述
+        description = await apiClient.generateImageDescription(
+          collectionId,
+          uploadResult.fileId,
+          { beforeText, afterText }
+        );
+        console.log(chalk.green(`Generated description: "${description}"`));
+      }
 
       // Replace the base64 image reference with the hosted URL
       result = result.replace(

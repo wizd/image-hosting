@@ -42,7 +42,7 @@ if (!fs.existsSync(CONFIG.DATA_ROOT)) {
 }
 
 const app: Express = express();
-app.use(express.json()); // Default limit
+app.use(express.json({ limit: '50mb' })); // 增加 JSON 请求体大小限制
 app.use(cors());
 app.use(requestLogger); // Add logging middleware
 

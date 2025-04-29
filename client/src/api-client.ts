@@ -298,4 +298,48 @@ export class ApiClient {
       );
     }
   }
+
+  /**
+   * 使用上下文为图片生成描述
+   * @param collectionId 集合ID
+   * @param fileId 文件ID
+   * @param context 图片上下文
+   * @returns 生成的描述文本
+   */
+  async generateImageDescription(
+    collectionId: string,
+    fileId: string,
+    context?: {
+      beforeText?: string;
+      afterText?: string;
+    }
+  ): Promise<string> {
+    try {
+      // 确保已经初始化
+      await this.initialize();
+
+      const response = await this.client.post(
+        `/v1/collections/${collectionId}/assets/${fileId}/description`,
+        context || {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // 设置较大的超时时间，因为AI生成可能需要更长时间
+          timeout: 60000, // 60 seconds
+        }
+      );
+
+      return response.data.description;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(
+          `Failed to generate description: ${error.response.data.error || error.message}`
+        );
+      }
+      throw new Error(
+        `Failed to generate description: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
 }
