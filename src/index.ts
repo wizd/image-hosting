@@ -437,7 +437,13 @@ app.get(
       }
 
       const imagePath = path.resolve(collectionPath, imageFile);
-      const imageUrl = `${CONFIG.IMAGE_ROOT_URL}/v1/assets/${collectionId}/${imageFile}`;
+
+      // Read and convert image to base64
+      const imageBuffer = fs.readFileSync(imagePath);
+      const base64Image = imageBuffer.toString("base64");
+      const mimeType =
+        getContentTypeFromExtension(path.extname(imageFile)) || "image/jpeg";
+      const dataUri = `data:${mimeType};base64,${base64Image}`;
 
       const openai = new OpenAI({
         baseURL: CONFIG.OPENAI_BASE_URL,
@@ -456,7 +462,7 @@ app.get(
               {
                 type: "image_url",
                 image_url: {
-                  url: imageUrl,
+                  url: dataUri,
                 },
               },
             ],

@@ -221,8 +221,11 @@ async function processBase64Images(
 
   for (const match of matches) {
     const [fullMatch, altText, base64Data] = match;
+    const truncatedBase64 =
+      base64Data.length > 50 ? `${base64Data.substring(0, 47)}...` : base64Data;
     console.log(chalk.cyan("\nProcessing base64 image"));
     console.log(chalk.gray(`Alt text: ${altText || "(empty)"}`));
+    console.log(chalk.gray(`Base64 data (truncated): ${truncatedBase64}`));
 
     try {
       if (!base64Data) {
