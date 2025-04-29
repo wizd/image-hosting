@@ -91,34 +91,10 @@ export class ApiClient {
       return this.collectionId;
     }
 
-    try {
-      // First check if collection already exists
-      const collectionsResponse = await this.client.get("/collections");
-      const existingCollection = collectionsResponse.data.collections.find(
-        (c: any) => c.collectionName === name
-      );
-
-      if (existingCollection) {
-        this.collectionId = existingCollection.collectionId;
-        this.collectionName = name;
-        return this.collectionId;
-      }
-
-      // Create new collection if it doesn't exist
-      const response = await this.client.post("/collections", { name });
-      this.collectionId = response.data.collectionId;
-      this.collectionName = name;
-      return this.collectionId;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(
-          `Failed to ensure collection: ${error.response.data.error || error.message}`
-        );
-      }
-      throw new Error(
-        `Failed to ensure collection: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    // 直接使用集合名称作为 ID
+    this.collectionId = name;
+    this.collectionName = name;
+    return this.collectionId;
   }
 
   async uploadLocalImage(
@@ -126,6 +102,9 @@ export class ApiClient {
     collectionName: string
   ): Promise<ImageUploadResult> {
     try {
+      // 确保已经初始化
+      await this.initialize();
+
       const collectionId = await this.ensureCollection(collectionName);
 
       const formData = new FormData();
@@ -137,6 +116,9 @@ export class ApiClient {
         {
           headers: {
             ...formData.getHeaders(),
+            // 确保认证头被正确设置
+            ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+            ...(this.apiKey ? { "x-api-key": this.apiKey } : {}),
           },
         }
       );
@@ -159,6 +141,9 @@ export class ApiClient {
     collectionName: string
   ): Promise<ImageUploadResult> {
     try {
+      // 确保已经初始化
+      await this.initialize();
+
       // Download the remote image
       const response = await axios.get(imageUrl, {
         responseType: "arraybuffer",
@@ -196,21 +181,25 @@ export class ApiClient {
     collectionName: string
   ): Promise<ImageUploadResult> {
     try {
-      const collectionId = await this.ensureCollection(collectionName);
+      // 确保已经初始化
+      await this.initialize();
 
-      const response = await this.client.post(
-        `/collections/${collectionId}/base64`,
-        {
-          images: [
-            {
-              data: base64Data,
-              filename: filename,
-            },
-          ],
-        }
+      // 从 base64 数据中提取图片数据和内容类型
+      const matches = base64Data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        throw new Error("Invalid base64 data format");
+      }
+
+      const contentType = matches[1];
+      const base64ImageData = matches[2];
+      const buffer = Buffer.from(base64ImageData, "base64");
+
+      return await this.uploadBuffer(
+        buffer,
+        filename,
+        contentType,
+        collectionName
       );
-
-      return response.data.images[0];
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         throw new Error(
@@ -230,6 +219,9 @@ export class ApiClient {
     collectionName: string
   ): Promise<ImageUploadResult> {
     try {
+      // 确保已经初始化
+      await this.initialize();
+
       const collectionId = await this.ensureCollection(collectionName);
 
       const formData = new FormData();
@@ -244,6 +236,9 @@ export class ApiClient {
         {
           headers: {
             ...formData.getHeaders(),
+            // 确保认证头被正确设置
+            ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+            ...(this.apiKey ? { "x-api-key": this.apiKey } : {}),
           },
         }
       );
