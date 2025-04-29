@@ -444,8 +444,26 @@ app.post(
         baseURL: CONFIG.OPENAI_BASE_URL,
       });
 
-      let promptText =
-        "Please provide a concise description of this image, suitable for use as an alt text in markdown. Keep it under 100 characters.";
+      // Helper function to detect language
+      function detectLanguage(text: string): string {
+        // Simple detection based on character ranges
+        const hasChineseChars = /[\u4e00-\u9fff]/.test(text);
+        const hasJapaneseChars = /[\u3040-\u30ff]/.test(text);
+        const hasKoreanChars = /[\uac00-\ud7af]/.test(text);
+
+        if (hasChineseChars) return "Chinese";
+        if (hasJapaneseChars) return "Japanese";
+        if (hasKoreanChars) return "Korean";
+        return "English";
+      }
+
+      // Detect context language
+      const contextLanguage =
+        beforeText || afterText
+          ? detectLanguage(beforeText || "") || detectLanguage(afterText || "")
+          : "English";
+
+      let promptText = `Please provide a concise description of this image in ${contextLanguage}, suitable for use as an alt text in markdown. Keep it under 100 characters.`;
 
       if (beforeText || afterText) {
         promptText = `This image appears in a markdown document. ${
@@ -456,7 +474,7 @@ app.post(
           afterText
             ? `After the image, the text continues: "${afterText}". `
             : ""
-        }Based on this context and the image content, please provide a concise and contextually relevant alt text description (under 100 characters) that explains the image's role in the document.`;
+        }Based on this context and the image content, please provide a concise and contextually relevant alt text description (under 100 characters) in ${contextLanguage} that explains the image's role in the document.`;
       }
 
       const response = await openai.chat.completions.create({

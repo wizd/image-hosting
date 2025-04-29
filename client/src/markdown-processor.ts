@@ -17,15 +17,21 @@ function getSurroundingParagraphs(markdown: string, matchIndex: number): { befor
   // 获取匹配位置之后的文本
   const afterText = markdown.slice(matchIndex + 1);
 
-  // 找到最近的前一段落（向前找到两个换行符之间的内容）
-  const beforeParagraph = beforeText.split('\n\n').pop()?.trim() || '';
+  // 将文本按行分割
+  const beforeLines = beforeText.split("\n").reverse();
+  const afterLines = afterText.split("\n");
 
-  // 找到最近的后一段落（向后找到两个换行符之间的内容）
-  const afterParagraph = afterText.split('\n\n')[0]?.trim() || '';
+  // 找到最近的前一个非空文本行
+  const beforeParagraph =
+    beforeLines.find((line) => line.trim().length > 0) || "";
+
+  // 找到最近的后一个非空文本行
+  const afterParagraph =
+    afterLines.find((line) => line.trim().length > 0) || "";
 
   return {
-    beforeText: beforeParagraph,
-    afterText: afterParagraph
+    beforeText: beforeParagraph.trim(),
+    afterText: afterParagraph.trim(),
   };
 }
 
