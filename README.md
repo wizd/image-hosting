@@ -1,16 +1,15 @@
 # TypeScript 图片托管服务
 
-一个基于TypeScript和Express的图片托管服务，允许用户创建集合并上传图片。该服务包含完整的用户认证系统，可以部署在Vercel上，提供安全且强大的图片托管功能。
+一个基于TypeScript和Express的图片托管服务，允许用户创建集合并上传图片。该服务使用 API Key 认证，可以部署在Vercel上，提供安全且强大的图片托管功能。
 
 ## 功能特点
 
-- 用户注册和登录系统，使用JWT进行身份验证
-- API密钥认证，用于自动化脚本和集成
+- API密钥认证，用于安全访问和权限控制
 - 创建具有唯一ID的命名集合
 - 上传多个图片到集合中
 - 为集合和文件自动生成UUID
 - 返回包含图片元数据的JSON响应
-- 基于用户的权限控制（用户只能访问自己的集合）
+- 基于API密钥的权限控制
 - 可配置的存储路径和URL
 - 支持Vercel部署
 - **新增**: 使用AI（OpenAI或Grok）为图片生成描述
@@ -19,7 +18,7 @@
 
 - **后端**: Node.js, Express
 - **语言**: TypeScript
-- **身份验证**: JWT (JSON Web Tokens) 和 API密钥
+- **身份验证**: API密钥
 - **密码加密**: bcryptjs
 - **文件处理**: Multer
 - **ID生成**: UUID
@@ -35,8 +34,7 @@
 | `DATA_ROOT` | 存储图片和元数据的目录路径 | `./data` | 是 |
 | `IMAGE_ROOT_URL` | 访问图片的基础URL | `http://localhost:3000/images/` | 是 |
 | `PORT` | 服务器端口 | `3000` | 否 |
-| `JWT_SECRET` | JWT令牌的密钥 | `default-secret-key` | 是（生产环境） |
-| `API_KEY` | 默认API密钥（可选） | - | 否 |
+| `ROOT_API_KEY` | 根API密钥（用于管理其他API密钥） | - | 是 |
 | `AI_PROVIDER` | AI提供商（openai或xai） | `openai` | 否（仅图片描述功能） |
 | `OPENAI_API_KEY` | OpenAI API密钥 | - | 否（使用OpenAI时需要） |
 | `XAI_API_KEY` | Grok (XAI) API密钥 | - | 否（使用Grok时需要） |
@@ -92,10 +90,9 @@ image-hosting-service/
    DATA_ROOT=./data
    IMAGE_ROOT_URL=http://your-domain.com/images/
    PORT=3000
-   JWT_SECRET=your-secret-key
    
-   # 可选：默认API密钥
-   API_KEY=your-api-key
+   # 可选：根API密钥
+   ROOT_API_KEY=your-root-api-key
    
    # 可选：AI配置
    AI_PROVIDER=openai
@@ -189,11 +186,11 @@ Authorization: Bearer YOUR_TOKEN_HERE
 
 ### API密钥管理
 
-#### 创建API密钥（需要JWT认证）
+#### 创建API密钥（需要API密钥认证）
 
 \`\`\`
 POST /api-keys
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 Content-Type: application/json
 
 {
@@ -220,11 +217,11 @@ Content-Type: application/json
 
 **注意**: 完整的API密钥只会在创建时返回一次，请妥善保存。
 
-#### 获取用户的所有API密钥（需要JWT认证）
+#### 获取用户的所有API密钥（需要API密钥认证）
 
 \`\`\`
 GET /api-keys
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 \`\`\`
 
 响应:
@@ -245,11 +242,11 @@ Authorization: Bearer YOUR_TOKEN_HERE
 }
 \`\`\`
 
-#### 更新API密钥状态（需要JWT认证）
+#### 更新API密钥状态（需要API密钥认证）
 
 \`\`\`
 PATCH /api-keys/:id
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 Content-Type: application/json
 
 {
@@ -273,11 +270,11 @@ Content-Type: application/json
 }
 \`\`\`
 
-#### 删除API密钥（需要JWT认证）
+#### 删除API密钥（需要API密钥认证）
 
 \`\`\`
 DELETE /api-keys/:id
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 \`\`\`
 
 响应:
@@ -289,11 +286,11 @@ Authorization: Bearer YOUR_TOKEN_HERE
 
 ### 集合管理
 
-#### 创建集合（需要认证）
+#### 创建集合（需要API密钥认证）
 
 \`\`\`
 POST /collections
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
 Content-Type: application/json
@@ -312,11 +309,11 @@ Content-Type: application/json
 }
 \`\`\`
 
-#### 获取用户的所有集合（需要认证）
+#### 获取用户的所有集合（需要API密钥认证）
 
 \`\`\`
 GET /collections
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
 \`\`\`
@@ -339,11 +336,11 @@ X-API-Key: YOUR_API_KEY
 }
 \`\`\`
 
-#### 删除集合（需要认证）
+#### 删除集合（需要API密钥认证）
 
 \`\`\`
 DELETE /collections/:collectionId
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
 \`\`\`
@@ -357,11 +354,11 @@ X-API-Key: YOUR_API_KEY
 
 ### 图片管理
 
-#### 上传图片到集合（需要认证）
+#### 上传图片到集合（需要API密钥认证）
 
 \`\`\`
 POST /collections/:collectionId/images
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
 Content-Type: multipart/form-data
@@ -390,11 +387,11 @@ images: [file1, file2, ...]
 }
 \`\`\`
 
-#### 获取集合中的所有图片（需要认证）
+#### 获取集合中的所有图片（需要API密钥认证）
 
 \`\`\`
 GET /collections/:collectionId/images
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
 \`\`\`
@@ -574,16 +571,9 @@ node dist/index.js path/to/markdown.md --describe
 
 ## 认证系统详解
 
-### JWT认证流程
-
-1. **用户注册/登录**：用户提供凭据，服务器验证后生成JWT令牌
-2. **令牌使用**：客户端在后续请求中通过`Authorization`头部发送令牌
-3. **令牌验证**：服务器验证令牌的有效性和过期时间
-4. **访问控制**：根据令牌中的用户ID确定资源访问权限
-
 ### API密钥认证流程
 
-1. **创建API密钥**：用户通过JWT认证创建API密钥
+1. **创建API密钥**：用户通过API密钥认证创建API密钥
 2. **密钥使用**：客户端在请求中通过`X-API-Key`头部发送密钥
 3. **密钥验证**：服务器验证密钥的有效性、权限和过期时间
 4. **访问控制**：根据密钥关联的用户ID和权限确定资源访问权限
@@ -591,7 +581,6 @@ node dist/index.js path/to/markdown.md --describe
 ### 安全特性
 
 - 密码使用bcrypt进行哈希处理，不会明文存储
-- JWT令牌有24小时的过期时间
 - API密钥可以设置自定义过期时间
 - 用户只能访问和修改自己的资源（集合和图片）
 - 所有敏感操作都需要有效的认证
@@ -629,8 +618,7 @@ API密钥存储在`DATA_ROOT`目录下的`api-keys.json`文件中。每个API密
 2. 配置环境变量:
    - `DATA_ROOT`: 在Vercel上，这应该设置为`/tmp/data`或其他可写目录
    - `IMAGE_ROOT_URL`: 设置为您的Vercel域名，例如`https://your-project.vercel.app/images/`
-   - `JWT_SECRET`: 设置一个安全的密钥用于JWT令牌生成（**非常重要**：使用强密钥）
-   - `API_KEY`: 可选，设置一个默认的API密钥
+   - `ROOT_API_KEY`: 设置一个根API密钥用于管理其他API密钥
    - `AI_PROVIDER`: 设置为`openai`或`xai`（如果使用图片描述功能）
    - `OPENAI_API_KEY`: 设置您的OpenAI API密钥（如果使用OpenAI）
    - `XAI_API_KEY`: 设置您的Grok API密钥（如果使用Grok）
@@ -671,30 +659,16 @@ async function uploadWithApiKey() {
   return await response.json();
 }
 
-// 使用JWT认证
-async function uploadWithJWT() {
-  // 先登录获取JWT令牌
-  const loginResponse = await fetch('http://your-api.com/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ 
-      email: 'user@example.com', 
-      password: 'password123' 
-    })
-  });
-  
-  const { token } = await loginResponse.json();
-  
-  // 使用JWT令牌上传图片
+// 使用API密钥认证
+async function uploadWithRootApiKey() {
+  const apiKey = 'your-root-api-key';
   const formData = new FormData();
   formData.append('images', fileInput.files[0]);
   
   const response = await fetch(`http://your-api.com/collections/your-collection-id/images`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'X-API-Key': apiKey
     },
     body: formData
   });

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { apiKeyService } from "../api-key/api-key-service";
 import { CONFIG } from "../config";
 
-export interface ApiKeyRequest extends Request {
+export interface AuthRequest extends Request {
   apiKey?: string;
   user?: {
     id: string;
@@ -11,7 +11,7 @@ export interface ApiKeyRequest extends Request {
 }
 
 export const authenticateApiKey = async (
-  req: ApiKeyRequest,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {

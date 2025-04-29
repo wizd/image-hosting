@@ -60,7 +60,7 @@ describe("Image Hosting API Integration Tests", () => {
     it("should create additional API key", async () => {
       const response = await request(serverUrl)
         .post("/api-keys")
-        .set("X-API-Key", ROOT_API_KEY) // 使用ROOT_API_KEY来创建新的API key
+        .set("X-API-Key", ROOT_API_KEY)
         .send({
           name: "Additional Test API Key",
           permissions: ["read"],
@@ -73,7 +73,7 @@ describe("Image Hosting API Integration Tests", () => {
     it("should get API keys", async () => {
       const response = await request(serverUrl)
         .get("/api-keys")
-        .set("X-API-Key", ROOT_API_KEY); // 使用ROOT_API_KEY来获取所有API keys
+        .set("X-API-Key", ROOT_API_KEY);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
@@ -85,7 +85,7 @@ describe("Image Hosting API Integration Tests", () => {
   describe("Collections", () => {
     it("should create collection", async () => {
       const response = await request(serverUrl)
-        .post("/collections")
+        .post("/v1/collections")
         .set("X-API-Key", apiKey)
         .send(TEST_COLLECTION);
 
@@ -96,7 +96,7 @@ describe("Image Hosting API Integration Tests", () => {
 
     it("should get collections", async () => {
       const response = await request(serverUrl)
-        .get("/collections")
+        .get("/v1/collections")
         .set("X-API-Key", apiKey);
 
       expect(response.status).toBe(200);
@@ -110,12 +110,9 @@ describe("Image Hosting API Integration Tests", () => {
   describe("Image Upload", () => {
     it("should upload image using multipart form", async () => {
       const response = await request(serverUrl)
-        .post(`/collections/${collectionId}/images`)
+        .post(`/v1/collections/${collectionId}/assets`)
         .set("X-API-Key", apiKey)
         .attach("images", path.join(__dirname, "test-image.jpg"));
-
-      console.log("Multipart upload response:", response.body);
-      console.log("Multipart upload status:", response.status);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("images");
@@ -125,11 +122,8 @@ describe("Image Hosting API Integration Tests", () => {
 
     it("should get images in collection", async () => {
       const response = await request(serverUrl)
-        .get(`/collections/${collectionId}/images`)
+        .get(`/v1/collections/${collectionId}/assets`)
         .set("X-API-Key", apiKey);
-
-      console.log("Get images response:", response.body);
-      console.log("Get images status:", response.status);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("images");
@@ -140,11 +134,8 @@ describe("Image Hosting API Integration Tests", () => {
     it("should serve image", async () => {
       // 首先获取集合中的图片列表
       const listResponse = await request(serverUrl)
-        .get(`/collections/${collectionId}/images`)
+        .get(`/v1/collections/${collectionId}/assets`)
         .set("X-API-Key", apiKey);
-
-      console.log("List images response:", listResponse.body);
-      console.log("List images status:", listResponse.status);
 
       expect(listResponse.status).toBe(200);
       expect(listResponse.body).toHaveProperty("images");
@@ -152,15 +143,11 @@ describe("Image Hosting API Integration Tests", () => {
       expect(listResponse.body.images.length).toBeGreaterThan(0);
 
       const image = listResponse.body.images[0];
-      console.log("Image to serve:", image);
 
       // 然后尝试访问图片
       const response = await request(serverUrl).get(
-        `/images/${collectionId}/${image.fileId}`
+        `/v1/assets/${collectionId}/${image.fileId}${image.fileExtension}`
       );
-
-      console.log("Serve image status:", response.status);
-      console.log("Serve image headers:", response.headers);
 
       expect(response.status).toBe(200);
       expect(response.header["content-type"]).toMatch(/^image\//);
@@ -171,7 +158,7 @@ describe("Image Hosting API Integration Tests", () => {
   describe("Cleanup", () => {
     it("should delete collection", async () => {
       const response = await request(serverUrl)
-        .delete(`/collections/${collectionId}`)
+        .delete(`/v1/collections/${collectionId}`)
         .set("X-API-Key", apiKey);
 
       expect(response.status).toBe(200);

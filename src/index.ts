@@ -7,7 +7,7 @@ import dotenv from "dotenv"
 import cors from "cors";
 import {
   authenticateApiKey,
-  type ApiKeyRequest,
+  type AuthRequest,
 } from "./middleware/api-key-middleware";
 import { apiKeyController } from "./api-key/api-key-controller";
 import { CONFIG } from "./config";
@@ -82,7 +82,7 @@ app.delete(
 app.post(
   "/v1/collections",
   authenticateApiKey,
-  async (req: ApiKeyRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const { name } = req.body;
 
@@ -128,7 +128,7 @@ app.post(
 app.get(
   "/v1/collections",
   authenticateApiKey,
-  async (req: ApiKeyRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const collections: CollectionResponse[] = [];
       const uuidRegex =
@@ -180,7 +180,7 @@ app.post(
   "/v1/collections/:collectionId/assets",
   upload.array("images"),
   authenticateApiKey,
-  async (req: ApiKeyRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const { collectionId } = req.params;
 
@@ -274,7 +274,7 @@ app.post(
 app.get(
   "/v1/collections/:collectionId/assets",
   authenticateApiKey,
-  async (req: ApiKeyRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const { collectionId } = req.params;
 
@@ -317,7 +317,7 @@ app.get(
 app.delete(
   "/v1/collections/:collectionId",
   authenticateApiKey,
-  async (req: ApiKeyRequest, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const { collectionId } = req.params;
 

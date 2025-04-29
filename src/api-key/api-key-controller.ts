@@ -1,7 +1,7 @@
 import type { Response } from "express"
 import { apiKeyService } from "./api-key-service"
 import type { CreateApiKeyRequest } from "./api-key-types"
-import type { AuthRequest } from "../middleware/auth-middleware"
+import type { AuthRequest } from "../middleware/api-key-middleware";
 
 export class ApiKeyController {
   public async createApiKey(req: AuthRequest, res: Response): Promise<void> {
