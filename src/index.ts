@@ -5,6 +5,8 @@ import path from "path"
 import fs from "fs"
 import dotenv from "dotenv"
 import cors from "cors";
+import { streamText } from "ai";
+import OpenAI from "openai";
 import {
   authenticateApiKey,
   type AuthRequest,
@@ -399,6 +401,86 @@ app.get("/v1/assets/:collectionId/:fileId", (req, res) => {
     res.status(500).json({ error: "Failed to serve image" });
   }
 });
+
+// Generate AI description for an image
+app.get(
+  "/v1/collections/:collectionId/assets/:fileId/description",
+  authenticateApiKey,
+  async (req: AuthRequest, res) => {
+    try {
+      const { collectionId, fileId } = req.params;
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(collectionId)) {
+        return res.status(400).json({ error: "Invalid collection ID format" });
+      }
+
+      // Find the file with the matching fileId prefix
+      const collectionPath = path.resolve(CONFIG.DATA_ROOT, collectionId);
+
+      if (!fs.existsSync(collectionPath)) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+
+      const files = fs.readdirSync(collectionPath);
+      const imageFile = files.find(
+        (file) =>
+          file.startsWith(fileId) &&
+          file !== "metadata.json" &&
+          file !== "uploads.json"
+      );
+
+      if (!imageFile) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      const imagePath = path.resolve(collectionPath, imageFile);
+      const imageUrl = `${CONFIG.IMAGE_ROOT_URL}/v1/assets/${collectionId}/${imageFile}`;
+
+      const openai = new OpenAI({
+        baseURL: CONFIG.OPENAI_BASE_URL,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: CONFIG.OPENAI_MODEL_NAME as string,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Please provide a concise description of this image, suitable for use as an alt text in markdown. Keep it under 100 characters.",
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageUrl,
+                },
+              },
+            ],
+          },
+        ],
+        stream: true,
+        max_tokens: 300,
+      });
+
+      let description = "";
+      for await (const chunk of response) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          description += content;
+        }
+      }
+
+      res.status(200).json({ description: description.trim() });
+    } catch (error) {
+      console.error("Error generating image description:", error);
+      res.status(500).json({ error: "Failed to generate image description" });
+    }
+  }
+);
 
 // Helper function to get file extension from MIME type
 function getExtensionFromMimeType(mimeType: string): string {

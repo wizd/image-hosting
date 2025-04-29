@@ -36,7 +36,8 @@
 | `PORT` | 服务器端口 | `3000` | 否 |
 | `ROOT_API_KEY` | 根API密钥（用于管理其他API密钥） | - | 是 |
 | `AI_PROVIDER` | AI提供商（openai或xai） | `openai` | 否（仅图片描述功能） |
-| `OPENAI_API_KEY` | OpenAI API密钥 | - | 否（使用OpenAI时需要） |
+| `OPENAI_API_KEY` | OpenAI API密钥，用于生成图片描述 | - | 否（仅图片描述功能需要） |
+| `OPENAI_BASE_URL` | OpenAI API 基础URL，用于使用兼容的API服务 | - | 否（使用其他兼容服务时需要） |
 | `XAI_API_KEY` | Grok (XAI) API密钥 | - | 否（使用Grok时需要） |
 
 ## 项目结构
@@ -424,6 +425,24 @@ GET /images/:collectionId/:fileId
 \`\`\`
 
 返回图片文件。
+
+#### 获取图片的 AI 生成描述（需要 API 密钥认证）
+
+```
+GET /v1/collections/:collectionId/assets/:fileId/description
+Authorization: Bearer YOUR_ROOT_API_KEY
+# 或者使用 API 密钥
+X-API-Key: YOUR_API_KEY
+```
+
+响应:
+```json
+{
+  "description": "A scenic mountain landscape with snow-capped peaks under a blue sky"
+}
+```
+
+注意：此功能需要配置 OpenAI API 密钥。
 
 ### 系统状态
 

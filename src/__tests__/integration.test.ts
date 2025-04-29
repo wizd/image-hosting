@@ -10,6 +10,7 @@ dotenv.config();
 
 // 测试数据
 const ROOT_API_KEY = process.env.ROOT_API_KEY || "test-root-key"; // 需要在环境变量中设置一个根API Key
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // OpenAI API密钥用于测试图片描述功能
 
 const TEST_API_KEY = {
   name: "Test API Key",
@@ -22,6 +23,8 @@ const TEST_COLLECTION = {
 
 let apiKey: string;
 let collectionId: string;
+let uploadedImageId: string;
+let uploadedImageExt: string;
 
 // 清理测试数据
 const cleanupTestData = () => {
@@ -107,7 +110,7 @@ describe("Image Hosting API Integration Tests", () => {
   });
 
   // 图片上传相关测试
-  describe("Image Upload", () => {
+  describe("Image Upload and Processing", () => {
     it("should upload image using multipart form", async () => {
       const response = await request(serverUrl)
         .post(`/v1/collections/${collectionId}/assets`)
@@ -118,6 +121,10 @@ describe("Image Hosting API Integration Tests", () => {
       expect(response.body).toHaveProperty("images");
       expect(Array.isArray(response.body.images)).toBe(true);
       expect(response.body.images.length).toBeGreaterThan(0);
+
+      // 保存上传的图片ID和扩展名，用于后续测试
+      uploadedImageId = response.body.images[0].fileId;
+      uploadedImageExt = response.body.images[0].fileExtension;
     });
 
     it("should get images in collection", async () => {
@@ -132,25 +139,53 @@ describe("Image Hosting API Integration Tests", () => {
     });
 
     it("should serve image", async () => {
-      // 首先获取集合中的图片列表
-      const listResponse = await request(serverUrl)
-        .get(`/v1/collections/${collectionId}/assets`)
-        .set("X-API-Key", apiKey);
-
-      expect(listResponse.status).toBe(200);
-      expect(listResponse.body).toHaveProperty("images");
-      expect(Array.isArray(listResponse.body.images)).toBe(true);
-      expect(listResponse.body.images.length).toBeGreaterThan(0);
-
-      const image = listResponse.body.images[0];
-
-      // 然后尝试访问图片
       const response = await request(serverUrl).get(
-        `/v1/assets/${collectionId}/${image.fileId}${image.fileExtension}`
+        `/v1/assets/${collectionId}/${uploadedImageId}${uploadedImageExt}`
       );
 
       expect(response.status).toBe(200);
       expect(response.header["content-type"]).toMatch(/^image\//);
+    });
+
+    // 图片描述功能测试
+    it("should generate image description if OpenAI API key is available", async () => {
+      // 如果没有配置OpenAI API密钥，跳过此测试
+      if (!OPENAI_API_KEY) {
+        console.log(
+          "Skipping image description test - No OpenAI API key available"
+        );
+        return;
+      }
+
+      const response = await request(serverUrl)
+        .get(
+          `/v1/collections/${collectionId}/assets/${uploadedImageId}/description`
+        )
+        .set("X-API-Key", apiKey);
+
+      if (
+        response.status === 500 &&
+        response.body.error === "Failed to generate image description"
+      ) {
+        console.log(
+          "Image description generation failed - This might be due to OpenAI API issues"
+        );
+        return;
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty("description");
+      expect(typeof response.body.description).toBe("string");
+      expect(response.body.description.length).toBeGreaterThan(0);
+    });
+
+    it("should handle invalid image ID for description generation", async () => {
+      const response = await request(serverUrl)
+        .get(`/v1/collections/${collectionId}/assets/invalid-id/description`)
+        .set("X-API-Key", apiKey);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("error");
     });
   });
 

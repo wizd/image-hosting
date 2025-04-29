@@ -13,6 +13,7 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
+    "ai": "^4.3.10",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
