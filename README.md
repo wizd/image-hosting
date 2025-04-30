@@ -42,7 +42,7 @@
 
 ## 项目结构
 
-\`\`\`
+```
 image-hosting-service/
 ├── src/
 │   ├── index.ts                # 主入口文件
@@ -71,23 +71,23 @@ image-hosting-service/
 ├── tsconfig.json               # TypeScript配置
 ├── package.json                # 项目依赖
 └── vercel.json                 # Vercel部署配置
-\`\`\`
+```
 
 ## 安装与设置
 
 1. 克隆仓库
-   \`\`\`bash
+   ```bash
    git clone <repository-url>
    cd image-hosting-service
-   \`\`\`
+   ```
 
 2. 安装依赖
-   \`\`\`bash
+   ```bash
    npm install
-   \`\`\`
+   ```
 
 3. 创建`.env`文件并设置环境变量
-   \`\`\`
+   ```
    DATA_ROOT=./data
    IMAGE_ROOT_URL=http://your-domain.com/images/
    PORT=3000
@@ -99,17 +99,17 @@ image-hosting-service/
    AI_PROVIDER=openai
    OPENAI_API_KEY=your-openai-api-key
    XAI_API_KEY=your-xai-api-key
-   \`\`\`
+   ```
 
 4. 构建项目
-   \`\`\`bash
+   ```bash
    npm run build
-   \`\`\`
+   ```
 
 5. 启动服务
-   \`\`\`bash
+   ```bash
    npm start
-   \`\`\`
+   ```
 
 ## API端点
 
@@ -117,7 +117,7 @@ image-hosting-service/
 
 #### 注册新用户
 
-\`\`\`
+```
 POST /auth/register
 Content-Type: application/json
 
@@ -126,10 +126,10 @@ Content-Type: application/json
   "email": "john@example.com",
   "password": "securepassword123"
 }
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -139,11 +139,11 @@ Content-Type: application/json
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
-\`\`\`
+```
 
 #### 用户登录
 
-\`\`\`
+```
 POST /auth/login
 Content-Type: application/json
 
@@ -151,10 +151,10 @@ Content-Type: application/json
   "email": "john@example.com",
   "password": "securepassword123"
 }
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -164,17 +164,17 @@ Content-Type: application/json
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
-\`\`\`
+```
 
 #### 获取用户资料
 
-\`\`\`
+```
 GET /auth/profile
 Authorization: Bearer YOUR_TOKEN_HERE
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -183,13 +183,13 @@ Authorization: Bearer YOUR_TOKEN_HERE
     "createdAt": "2023-12-15T12:30:45.123Z"
   }
 }
-\`\`\`
+```
 
 ### API密钥管理
 
 #### 创建API密钥（需要API密钥认证）
 
-\`\`\`
+```
 POST /api-keys
 Authorization: Bearer YOUR_ROOT_API_KEY
 Content-Type: application/json
@@ -199,10 +199,10 @@ Content-Type: application/json
   "permissions": ["read", "write"],
   "expiresAt": "2024-12-31T23:59:59Z"  // 可选
 }
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "apiKey": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -214,19 +214,19 @@ Content-Type: application/json
     "permissions": ["read", "write"]
   }
 }
-\`\`\`
+```
 
 **注意**: 完整的API密钥只会在创建时返回一次，请妥善保存。
 
 #### 获取用户的所有API密钥（需要API密钥认证）
 
-\`\`\`
+```
 GET /api-keys
 Authorization: Bearer YOUR_ROOT_API_KEY
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "apiKeys": [
     {
@@ -241,11 +241,11 @@ Authorization: Bearer YOUR_ROOT_API_KEY
     }
   ]
 }
-\`\`\`
+```
 
 #### 更新API密钥状态（需要API密钥认证）
 
-\`\`\`
+```
 PATCH /api-keys/:id
 Authorization: Bearer YOUR_ROOT_API_KEY
 Content-Type: application/json
@@ -253,10 +253,10 @@ Content-Type: application/json
 {
   "isActive": false
 }
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "apiKey": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -269,27 +269,27 @@ Content-Type: application/json
     "permissions": ["read", "write"]
   }
 }
-\`\`\`
+```
 
 #### 删除API密钥（需要API密钥认证）
 
-\`\`\`
+```
 DELETE /api-keys/:id
 Authorization: Bearer YOUR_ROOT_API_KEY
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "message": "API key deleted successfully"
 }
-\`\`\`
+```
 
 ### 集合管理
 
 #### 创建集合（需要API密钥认证）
 
-\`\`\`
+```
 POST /collections
 Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
@@ -299,28 +299,28 @@ Content-Type: application/json
 {
   "name": "my-collection"
 }
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "collectionId": "550e8400-e29b-41d4-a716-446655440000",
   "collectionName": "my-collection",
   "userId": "7b52009b-bfd9-4e2b-0d93-839c55f10200"
 }
-\`\`\`
+```
 
 #### 获取用户的所有集合（需要API密钥认证）
 
-\`\`\`
+```
 GET /collections
 Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "collections": [
     {
@@ -335,29 +335,29 @@ X-API-Key: YOUR_API_KEY
     }
   ]
 }
-\`\`\`
+```
 
 #### 删除集合（需要API密钥认证）
 
-\`\`\`
+```
 DELETE /collections/:collectionId
 Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "message": "Collection deleted successfully"
 }
-\`\`\`
+```
 
 ### 图片管理
 
 #### 上传图片到集合（需要API密钥认证）
 
-\`\`\`
+```
 POST /collections/:collectionId/images
 Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
@@ -365,10 +365,10 @@ X-API-Key: YOUR_API_KEY
 Content-Type: multipart/form-data
 
 images: [file1, file2, ...]
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "collectionId": "550e8400-e29b-41d4-a716-446655440000",
   "images": [
@@ -386,19 +386,19 @@ images: [file1, file2, ...]
     }
   ]
 }
-\`\`\`
+```
 
 #### 获取集合中的所有图片（需要API密钥认证）
 
-\`\`\`
+```
 GET /collections/:collectionId/images
 Authorization: Bearer YOUR_ROOT_API_KEY
 # 或者使用API密钥
 X-API-Key: YOUR_API_KEY
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "collectionId": "550e8400-e29b-41d4-a716-446655440000",
   "images": [
@@ -416,13 +416,13 @@ X-API-Key: YOUR_API_KEY
     }
   ]
 }
-\`\`\`
+```
 
 #### 访问图片（公开访问）
 
-\`\`\`
+```
 GET /images/:collectionId/:fileId
-\`\`\`
+```
 
 返回图片文件。
 
@@ -448,17 +448,17 @@ X-API-Key: YOUR_API_KEY
 
 #### 健康检查
 
-\`\`\`
+```
 GET /health
-\`\`\`
+```
 
 响应:
-\`\`\`json
+```json
 {
   "status": "ok",
   "environment": "production"
 }
-\`\`\`
+```
 
 ## 客户端工具
 
@@ -468,17 +468,17 @@ GET /health
 
 #### 安装客户端工具
 
-\`\`\`bash
+```bash
 cd client
 npm install
 npm run build
-\`\`\`
+```
 
 #### 配置客户端
 
 创建`.env`文件：
 
-\`\`\`
+```
 API_URL=http://localhost:3000
 
 # 认证方式（二选一）
@@ -493,13 +493,13 @@ COLLECTION_NAME=markdown-images
 AI_PROVIDER=openai
 OPENAI_API_KEY=your-openai-api-key
 XAI_API_KEY=your-xai-api-key
-\`\`\`
+```
 
 #### 使用客户端工具
 
 ##### 基本用法
 
-\`\`\`bash
+```bash
 # 处理Markdown文件，覆盖原文件
 node dist/index.js path/to/markdown.md
 
@@ -514,11 +514,11 @@ node dist/index.js path/to/markdown.md -k your-api-key
 
 # 使用邮箱密码认证
 node dist/index.js path/to/markdown.md -e user@example.com -p password
-\`\`\`
+```
 
 ##### 使用AI生成图片描述
 
-\`\`\`bash
+```bash
 # 使用OpenAI生成图片描述
 node dist/index.js path/to/markdown.md --describe --ai-provider openai --openai-key your-api-key
 
@@ -527,7 +527,7 @@ node dist/index.js path/to/markdown.md --describe --ai-provider xai --xai-key yo
 
 # 使用环境变量中的AI配置
 node dist/index.js path/to/markdown.md --describe
-\`\`\`
+```
 
 ##### 命令行选项
 
@@ -555,12 +555,12 @@ node dist/index.js path/to/markdown.md --describe
 
 创建API密钥时，可以指定要授予的权限：
 
-\`\`\`json
+```json
 {
   "name": "Read-Only Key",
   "permissions": ["read"]
 }
-\`\`\`
+```
 
 如果不指定权限，默认会授予`read`和`write`权限。
 
@@ -568,13 +568,13 @@ node dist/index.js path/to/markdown.md --describe
 
 创建API密钥时，可以设置过期时间：
 
-\`\`\`json
+```json
 {
   "name": "Temporary Key",
   "permissions": ["read", "write"],
   "expiresAt": "2024-12-31T23:59:59Z"
 }
-\`\`\`
+```
 
 如果不设置过期时间，API密钥将永不过期，直到被手动停用或删除。
 
@@ -650,9 +650,9 @@ API密钥存储在`DATA_ROOT`目录下的`api-keys.json`文件中。每个API密
 
 启动开发服务器:
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 服务将在`http://localhost:3000`上运行，并在代码更改时自动重启。
 
@@ -660,7 +660,7 @@ npm run dev
 
 ### 使用fetch API进行认证和上传
 
-\`\`\`javascript
+```javascript
 // 使用API密钥认证
 async function uploadWithApiKey() {
   const apiKey = 'your-api-key';
@@ -694,7 +694,7 @@ async function uploadWithRootApiKey() {
   
   return await response.json();
 }
-\`\`\`
+```
 
 ## 扩展功能
 
@@ -718,6 +718,4 @@ async function uploadWithRootApiKey() {
 ## 许可证
 
 [MIT](LICENSE)
-\`\`\`
 
-现在，让我们更新客户端的README.md文件，添加API密钥认证的说明：
