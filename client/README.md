@@ -16,19 +16,19 @@
 
 1. 安装依赖：
 
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 2. 构建项目：
 
-\`\`\`bash
+```bash
 npm run build
-\`\`\`
+```
 
 3. 创建`.env`文件并设置环境变量：
 
-\`\`\`
+```
 API_URL=http://localhost:3000
 API_KEY=your-api-key-here
 COLLECTION_NAME=markdown-images
@@ -37,19 +37,19 @@ COLLECTION_NAME=markdown-images
 AI_PROVIDER=openai
 OPENAI_API_KEY=your-openai-api-key
 XAI_API_KEY=your-xai-api-key
-\`\`\`
+```
 
 ## API密钥认证
 
 工具使用API密钥进行认证。API密钥可以通过以下方式获取：
 
 1. 使用Root API密钥创建新的API密钥：
-\`\`\`bash
+```bash
 curl -X POST http://localhost:3000/api-keys \
   -H "X-API-Key: your-root-api-key" \
   -H "Content-Type: application/json" \
   -d '{"name": "My API Key", "permissions": ["read", "write"]}'
-\`\`\`
+```
 
 2. 将获取到的API密钥设置到环境变量或在命令行中使用。
 
@@ -61,7 +61,7 @@ API密钥权限说明：
 
 ### 基本用法
 
-\`\`\`bash
+```bash
 # 处理Markdown文件，覆盖原文件
 node dist/index.js path/to/markdown.md -k your-api-key
 
@@ -74,11 +74,11 @@ node dist/index.js path/to/markdown.md -c my-collection -k your-api-key
 # 使用环境变量中的API密钥
 export API_KEY=your-api-key
 node dist/index.js path/to/markdown.md
-\`\`\`
+```
 
 ### 使用AI生成图片描述
 
-\`\`\`bash
+```bash
 # 使用OpenAI生成图片描述
 node dist/index.js path/to/markdown.md -k your-api-key --describe --ai-provider openai --openai-key your-openai-api-key
 
@@ -87,7 +87,7 @@ node dist/index.js path/to/markdown.md -k your-api-key --describe --ai-provider 
 
 # 使用环境变量中的AI配置
 node dist/index.js path/to/markdown.md -k your-api-key --describe
-\`\`\`
+```
 
 ### 命令行选项
 
@@ -104,7 +104,7 @@ node dist/index.js path/to/markdown.md -k your-api-key --describe
 
 假设有以下Markdown文件：
 
-\`\`\`markdown
+```markdown
 # 我的文档
 
 这是一个没有alt文本的本地图片：
@@ -115,11 +115,11 @@ node dist/index.js path/to/markdown.md -k your-api-key --describe
 
 这是一个base64图片：
 ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAJ5gMtggQAAAABJRU5ErkJggg==)
-\`\`\`
+```
 
 使用工具处理后，结果可能如下：
 
-\`\`\`markdown
+```markdown
 # 我的文档
 
 这是一个没有alt文本的本地图片：
@@ -130,7 +130,7 @@ node dist/index.js path/to/markdown.md -k your-api-key --describe
 
 这是一个base64图片：
 ![简单的白色背景上的黑点](http://localhost:3000/images/550e8400-e29b-41d4-a716-446655440000/ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d.png)
-\`\`\`
+```
 
 注意：只有原始alt文本为空的图片才会生成新的描述。
 
@@ -138,7 +138,7 @@ node dist/index.js path/to/markdown.md -k your-api-key --describe
 
 ### 基本用法
 
-\`\`\`typescript
+```typescript
 import { ApiClient } from "./api-client";
 
 // 创建API客户端
@@ -164,11 +164,11 @@ const description = await client.generateImageDescription("collection-id", "imag
   afterText: "这张图展示了具体的实现细节"
 });
 console.log(description);
-\`\`\`
+```
 
 ### 错误处理
 
-\`\`\`typescript
+```typescript
 try {
   const result = await client.uploadLocalImage("./image.jpg", "my-collection");
   console.log(result.fullUrl);
@@ -177,13 +177,13 @@ try {
     console.error("上传失败:", error.message);
   }
 }
-\`\`\`
+```
 
 ### 图片描述生成
 
 图片描述功能使用Vercel AI SDK实现，支持两种AI提供商。API支持传入图片的上下文信息，以生成更准确的描述：
 
-\`\`\`typescript
+```typescript
 // 生成图片描述
 const description = await client.generateImageDescription(imageId, {
   beforeText: "在讨论系统架构时",
@@ -211,7 +211,7 @@ async generateImageDescription(imageId: string, context?: {
   const data = await response.json();
   return data.description;
 }
-\`\`\`
+```
 
 生成的描述会考虑图片在文档中的上下文，从而提供更准确和相关的描述。例如：
 
@@ -222,7 +222,7 @@ async generateImageDescription(imageId: string, context?: {
 
 在发送到AI之前，图片会使用Sharp库进行优化，以减少API调用的大小：
 
-\`\`\`typescript
+```typescript
 // 优化图片
 const optimizedBuffer = await sharp(buffer)
   .resize({
@@ -233,7 +233,7 @@ const optimizedBuffer = await sharp(buffer)
   })
   .jpeg({ quality: 80 })
   .toBuffer()
-\`\`\`
+```
 
 ## 未来改进
 
